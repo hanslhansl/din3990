@@ -1,51 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
 from enum import Enum
-import math as m, os
+import math as m
 from scipy import optimize
 
-def enable_virtual_terminal_processing():
-    import ctypes
-    from ctypes import wintypes
-
-    try:
-        # Konstanten aus der Windows-API
-        STD_OUTPUT_HANDLE = -11
-        ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
-        INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
-
-        # Funktionen aus der Windows-API laden
-        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
-        GetStdHandle = kernel32.GetStdHandle
-        GetStdHandle.argtypes = [wintypes.DWORD]
-        GetStdHandle.restype = wintypes.HANDLE
-
-        GetConsoleMode = kernel32.GetConsoleMode
-        GetConsoleMode.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
-        GetConsoleMode.restype = wintypes.BOOL
-
-        SetConsoleMode = kernel32.SetConsoleMode
-        SetConsoleMode.argtypes = [wintypes.HANDLE, wintypes.DWORD]
-        SetConsoleMode.restype = wintypes.BOOL
-
-        # Handle für die Standardausgabe abrufen
-        hOut = GetStdHandle(STD_OUTPUT_HANDLE)
-        if hOut == INVALID_HANDLE_VALUE:
-            raise ctypes.WinError(ctypes.get_last_error())
-
-        # Aktuellen Konsolenmodus abrufen
-        dwMode = wintypes.DWORD()
-        if not GetConsoleMode(hOut, ctypes.byref(dwMode)):
-            raise ctypes.WinError(ctypes.get_last_error())
-
-        # Virtual Terminal Processing aktivieren
-        dwMode.value |= ENABLE_VIRTUAL_TERMINAL_PROCESSING
-        if not SetConsoleMode(hOut, dwMode):
-            raise ctypes.WinError(ctypes.get_last_error())
-
-        print("Virtual Terminal Processing wurde aktiviert.\n")
-    except WindowsError as e:
-        print(f"Fehler: {e}\n")
 
 def to_float(val) -> float:
     return val
@@ -58,8 +16,8 @@ def inverse_involute(alpha, anfangswert = 20):
     except RuntimeError:
         assert(False)
 
-Rad1 = 0
-Rad2 = 1
+Ritzel = 0
+Rad = 1
 
 @dataclass
 class Profil:
@@ -71,26 +29,12 @@ Normalprofil1 =     Profil(20, 1, 1.25, 0.250)
 Normalprofil2 =     Profil(20, 1, 1.25, 0.375)
 Protuberanzprofil = Profil(20, 1, 1.40, 0.400)
 
-@dataclass
-class Werkstoff:
-    class Art(Enum):
-        Baustahl = 0
-        vergüteterStahl = 1
-        einsatzgehärteterStahl = 2
-        randschichtgehärteterStahl = 3
-        nitrierterStahl = 4
-        nitrokarburierterStahl = 5
-        
-    art : Art
-    sigma_Hlim : float
-    sigma_FE : float
-    HB : float
-    """Nur das Intervall (130; 470) ist relevant"""
+
 
 class Tabelle_3_2(Enum):
-    ohneBreitenballigkeltOderEndrücknahme = 0
-    mitSinnvollerBreitenballigkeit = 1
-    mitSinnvollerEndrücknahme = 2
+    ohneBreitenballigkeltOderEndrücknahme = 0.023
+    mitSinnvollerBreitenballigkeit = 0.012
+    mitSinnvollerEndrücknahme = 0.016
 
 class Bild_3_1(Enum):
     a = 0
@@ -1108,44 +1052,3 @@ class DIN_3990_11:
         return
 
 
-if __name__ == "__main__":
-    if os.name == 'nt':
-        enable_virtual_terminal_processing()
-
-
-    S_Hstatmin = 1.3
-    S_Hdyn_interval = (1.2, 1.5)
-    S_Fstatmin = 3.5
-    S_Fdyn_interval = (1.5, 2)
-
-    werkstoff = Werkstoff(Werkstoff.Art.einsatzgehärteterStahl, 1500, 860, 220)
-
-    geometrie = DIN_21771(m_n = 4,
-                        z = (19, 104),
-                        x = (0.5, 0.15),
-                        bezugsprofil = Normalprofil1,
-                        beta = 0,
-                        k = 0,
-                        b_d_1_verhältnis = 0.64)
-
-
-    getriebe = DIN_3990_11(geometrie = geometrie, P = 55,
-                n_1 = 980,
-                verzahnungsqualität = (6, 7),
-                werkstoff = (werkstoff, werkstoff),
-                K_A = 1.75,
-                K_S = 2.5,
-                R_z = (5, 5),
-                s_pr = 0,
-
-                A = Tabelle_3_2.ohneBreitenballigkeltOderEndrücknahme,
-                f_ma = (0, 0),  # Annahme, siehe Fußnote 5
-                s = (0, 0),
-                fertigungsverfahren = (Fertigungsverfahren.geläpptGeschliffenGeschabt, Fertigungsverfahren.geläpptGeschliffenGeschabt),
-
-                _assert = True,
-                S_Hstatmin=S_Hstatmin, S_Hdynmin=S_Hdyn_interval, S_Fstatmin=S_Fstatmin, S_Fdynmin=S_Fdyn_interval)
-
-
-    assert geometrie.b / geometrie.m_n <= 30 # Konstruktionsvorgaben Tabelle 4
-    assert getriebe.R_z100 < 4 # Konstruktionsvorgaben Seite 7
