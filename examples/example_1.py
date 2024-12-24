@@ -1,15 +1,14 @@
 
 
-from ..din743 import din743
-
 import din3990.din3990_11 as din3990_11
+import din3990.din3990_5 as din3990_5
 
 S_Hstatmin = 1.3
 S_Hdyn_interval = (1.2, 1.5)
 S_Fstatmin = 3.5
 S_Fdyn_interval = (1.5, 2)
 
-werkstoff = din3990_11.Werkstoff(din3990_11.Werkstoff.Art.einsatzgehärteterStahl, 1500, 860, 220)
+werkstoff = din3990_5.Werkstoff(din3990_5.Werkstoff.Art.Einsatzstahl, 1500, 860, 220)
 
 geometrie = din3990_11.DIN_21771(m_n = 4,
                     z = (19, 104),

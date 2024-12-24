@@ -5,32 +5,34 @@ from enum import Enum
 @dataclass
 class Werkstoff:
     class Art(Enum):
-        Stahl = 0
-        VergütungsStahl = 1
-        Grauguß = 2
-        GußeisenMitKugelgraphit = 3
-        SchwarzerTemperguß = 4
-        Einsatzstahl = 5
-        InduktionsgehärteterStahl = 6
-        FlammgehärteterStahl = 7
-        InduktionsgehärtetesGußeisen = 8
-        FlammgehärtetesGußeisen = 9
-        Nitrierstahl = 10
-        NitrierterVergütungsstahl = 11
-        NitrierterEinsatzstahl = 12
-        NitrokarburierterVergütungsstahl = 11
-        NitrokarburierterEinsatzstahl = 12
+        Baustahl = 0
+        VergÃ¼tungsstahl = 1
+        GrauguÃŸ = 2
+        PerlitischesGuÃŸeisenMitKugelgraphit = 3
+        BainitischesGuÃŸeisenMitKugelgraphit = 4
+        FerritischesGuÃŸeisenMitKugelgraphit = 5
+        SchwarzerTemperguÃŸ = 6
+        Einsatzstahl = 7
+        InduktionsgehÃ¤rteterStahl = 8
+        FlammgehÃ¤rteterStahl = 9
+        InduktionsgehÃ¤rtetesGuÃŸeisen = 10
+        FlammgehÃ¤rtetesGuÃŸeisen = 11
+        Nitrierstahl = 12
+        NitrierterVergÃ¼tungsstahl = 13
+        NitrierterEinsatzstahl = 14
+        NitrokarburierterVergÃ¼tungsstahl = 15
+        NitrokarburierterEinsatzstahl = 16
 
-        St = Stahl,
-        V = VergütungsStahl,
-        GG = Grauguß,
-        GGG = GußeisenMitKugelgraphit,
-        GTS = SchwarzerTemperguß,
+        St = Baustahl,
+        V = VergÃ¼tungsstahl,
+        GG = GrauguÃŸ,
+        GGG = PerlitischesGuÃŸeisenMitKugelgraphit, BainitischesGuÃŸeisenMitKugelgraphit, FerritischesGuÃŸeisenMitKugelgraphit
+        GTS = SchwarzerTemperguÃŸ,
         ES = Einsatzstahl,
-        IF = InduktionsgehärteterStahl, FlammgehärteterStahl, InduktionsgehärtetesGußeisen, FlammgehärtetesGußeisen
+        IF = InduktionsgehÃ¤rteterStahl, FlammgehÃ¤rteterStahl, InduktionsgehÃ¤rtetesGuÃŸeisen, FlammgehÃ¤rtetesGuÃŸeisen
         NT = Nitrierstahl,
-        NVnitr = NitrierterVergütungsstahl, NitrierterEinsatzstahl
-        NVnitrocar = NitrokarburierterVergütungsstahl, NitrokarburierterEinsatzstahl
+        NVnitr = NitrierterVergÃ¼tungsstahl, NitrierterEinsatzstahl
+        NVnitrocar = NitrokarburierterVergÃ¼tungsstahl, NitrokarburierterEinsatzstahl
         
     art : Art
     sigma_Hlim : float
