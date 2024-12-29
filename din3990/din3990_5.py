@@ -23,17 +23,6 @@ class Werkstoff:
         NitrokarburierterVergütungsstahl = 15
         NitrokarburierterEinsatzstahl = 16
 
-        St = Baustahl,
-        V = Vergütungsstahl,
-        GG = Grauguß,
-        GGG = PerlitischesGußeisenMitKugelgraphit, BainitischesGußeisenMitKugelgraphit, FerritischesGußeisenMitKugelgraphit
-        GTS = SchwarzerTemperguß,
-        ES = Einsatzstahl,
-        IF = InduktionsgehärteterStahl, FlammgehärteterStahl, InduktionsgehärtetesGußeisen, FlammgehärtetesGußeisen
-        NT = Nitrierstahl,
-        NVnitr = NitrierterVergütungsstahl, NitrierterEinsatzstahl
-        NVnitrocar = NitrokarburierterVergütungsstahl, NitrokarburierterEinsatzstahl
-        
     art : Art
     sigma_Hlim : float
     sigma_FE : float

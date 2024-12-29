@@ -1,6 +1,555 @@
-from ._din3990_11 import *
-from . import _din3990_11
+from dataclasses import dataclass
+from re import L
+from typing import Optional
+from enum import Enum, IntEnum
+import math as m
+from scipy import optimize
+from . import din3990_5
 
+
+def to_float(val) -> float:
+    return val
+
+def involute(alpha):
+    return m.tan(m.radians(alpha)) - m.radians(alpha)
+def inverse_involute(alpha, anfangswert = 20):
+    try:
+        return float(optimize.newton(lambda x: involute(x) - alpha, anfangswert))
+    except RuntimeError:
+        assert(False)
+def interpolate(a : float, b : float, t : float):
+    return a - t * (a - b)
+
+Ritzel = 0
+Rad = 1
+_indices = (Ritzel, Rad)
+
+@dataclass
+class Profil:
+    alpha_n : float
+    h_aP_s : float
+    h_fP_s : float
+    rho_fP_s : float
+Normalprofil1 =     Profil(20, 1, 1.25, 0.250)
+Normalprofil2 =     Profil(20, 1, 1.25, 0.375)
+Protuberanzprofil = Profil(20, 1, 1.40, 0.400)
+
+class Verzahnungsqualität(IntEnum):
+    """nach DIN 3962 Teil1 bis Teil 3 bzw. ISO 1328 - 1975"""
+    DIN6 = 6
+    DIN7 = 7
+    DIN8 = 8
+    DIN9 = 9
+    DIN10 = 10
+    DIN11 = 11
+    DIN12 = 12
+    ISO5 = 105
+    ISO6 = 106
+    ISO7 = 107
+    ISO8 = 108
+    ISO9 = 109
+    ISO10 = 110
+    ISO11 = 111
+    ISO12 = 112
+
+class Tabelle3_2(float, Enum):
+    ohneBreitenballigkeltOderEndrücknahme = 0.023
+    mitSinnvollerBreitenballigkeit = 0.012
+    mitSinnvollerEndrücknahme = 0.016
+
+class Bild3_1(IntEnum):
+    a = 0
+    b = 1
+    c = 2
+    d = 3
+    e = 4
+    f = 5
+
+class Bild3_2(IntEnum):
+    a = 0
+    b = 1
+    c = 2
+    d = 3
+    e = 4
+
+class Fertigungsverfahren(IntEnum):
+    wälzgefrästWälzgestoßenWälzgehobelt = 0
+    geläpptGeschliffenGeschabt = 1
+
+class _WerkstoffKategorie:
+    Art = din3990_5.Werkstoff.Art
+
+    St = Art.Baustahl,
+    V = Art.Vergütungsstahl,
+    GG = Art.Grauguß,
+    GGG = Art.PerlitischesGußeisenMitKugelgraphit, Art.BainitischesGußeisenMitKugelgraphit, Art.FerritischesGußeisenMitKugelgraphit
+    GTS = Art.SchwarzerTemperguß,
+    ES = Art.Einsatzstahl,
+    IF = Art.InduktionsgehärteterStahl, Art.FlammgehärteterStahl, Art.InduktionsgehärtetesGußeisen, Art.FlammgehärtetesGußeisen
+    NT = Art.Nitrierstahl,
+    NVnitr = Art.NitrierterVergütungsstahl, Art.NitrierterEinsatzstahl
+    NVnitrocar = Art.NitrokarburierterVergütungsstahl, Art.NitrokarburierterEinsatzstahl
+
+    # für Tabelle 4.1
+    Stahl = (Art.Baustahl, Art.Vergütungsstahl, Art.Einsatzstahl,
+             Art.InduktionsgehärteterStahl, Art.FlammgehärteterStahl,
+             Art.Nitrierstahl, Art.NitrierterVergütungsstahl, Art.NitrierterEinsatzstahl,
+             Art.NitrokarburierterVergütungsstahl, Art.NitrokarburierterEinsatzst)
+    Stahlguß = ()
+    GußeisenMitKugelgraphit = Art.PerlitischesGußeisenMitKugelgraphit, Art.BainitischesGußeisenMitKugelgraphit, Art.FerritischesGußeisenMitKugelgraphit
+    GußeisenMitLamellengraphit = Art.Grauguß,
+
+def epsilon_alphan(epsilon_alpha : float, beta_b : float):
+    return epsilon_alpha / m.cos(m.radians(beta_b))**2
+
+def v(n : float, d : float):
+    return n * m.pi * d / 60000
+def F_t(P : float, n : float, d : float):
+    """Glg 3.01"""
+    return 60000000 * P / n / m.pi / d
+def T(P : float, n : float):
+    """Glg 3.02"""
+    return 30000 * P / n / m.pi
+
+def K_1(verzahnungsqualität : Verzahnungsqualität, geradverzahnt : bool):
+    """Tabelle 3.1"""
+    if geradverzahnt:
+        match verzahnungsqualität:
+            case Verzahnungsqualität.DIN6:
+                return 9.6
+            case Verzahnungsqualität.DIN7:
+                return 15.3
+            case Verzahnungsqualität.DIN8:
+                return 24.5
+            case Verzahnungsqualität.DIN9:
+                return 34.5
+            case Verzahnungsqualität.DIN10:
+                return 53.6
+            case Verzahnungsqualität.DIN11:
+                return 76.6
+            case Verzahnungsqualität.DIN12:
+                return 122.5
+            case Verzahnungsqualität.ISO5:
+                return 7.5
+            case Verzahnungsqualität.ISO6:
+                return 14.9
+            case Verzahnungsqualität.ISO7:
+                return 26.8
+            case Verzahnungsqualität.ISO8:
+                return 39.1
+            case Verzahnungsqualität.ISO9:
+                return 52.8
+            case Verzahnungsqualität.ISO10:
+                return 76.6
+            case Verzahnungsqualität.ISO11:
+                return 102.6
+            case Verzahnungsqualität.ISO12:
+                return 146.3
+    else:
+        match verzahnungsqualität:
+            case Verzahnungsqualität.DIN6:
+                return 8.5
+            case Verzahnungsqualität.DIN7:
+                return 13.6
+            case Verzahnungsqualität.DIN8:
+                return 21.8
+            case Verzahnungsqualität.DIN9:
+                return 30.7
+            case Verzahnungsqualität.DIN10:
+                return 47.7
+            case Verzahnungsqualität.DIN11:
+                return 68.2
+            case Verzahnungsqualität.DIN12:
+                return 109.1
+            case Verzahnungsqualität.ISO5:
+                return 6.7
+            case Verzahnungsqualität.ISO6:
+                return 13.3
+            case Verzahnungsqualität.ISO7:
+                return 23.9
+            case Verzahnungsqualität.ISO8:
+                return 34.8
+            case Verzahnungsqualität.ISO9:
+                return 47.0
+            case Verzahnungsqualität.ISO10:
+                return 68.2
+            case Verzahnungsqualität.ISO11:
+                return 91.4
+            case Verzahnungsqualität.ISO12:
+                return 130.3
+    raise ValueError(f"Falsche Verzahnungsqualität {verzahnungsqualität}")
+def K_2(geradverzahnt : bool):
+    """Tabelle 3.1"""
+    if geradverzahnt:
+        return 0.0193
+    return 0.0087
+def K_V(z_1 : int, v : float, u : float, F_t : float, K_A : float, b : float, epsilon_beta : float, geradverzahnt : bool, verzahnungsqualität : Verzahnungsqualität, _print):
+    """Abschnitt 3.3"""
+    # Glg 3.04
+    temp1 = z_1 * v / 100 * m.sqrt(u**2 / (1 + u**2))
+    _print("z_1 * v / 100 * sqrt(u^2 / (1 + u^2)) =", temp1)
+    assert temp1 < 10
+
+     # Abschnitt 3.3.1b
+    temp2 = max(F_t * K_A / b, 100)
+    _print("F_t * K_A / b =", temp2)
+
+    def _K_V(geradverzahnt):
+        return 1 + (K_1(verzahnungsqualität, geradverzahnt) / temp2 + K_2(geradverzahnt)) * temp1
+
+    if geradverzahnt:
+        return _K_V(True)
+    elif epsilon_beta >= 1:
+        return _K_V(False)
+    else:
+        K_Valpha = _K_V(True)
+        K_Vbeta = _K_V(False)
+        return interpolate(K_Valpha, K_Vbeta, epsilon_beta)
+
+def F_m(F_t : float, K_A : float, K_V : float):
+    """Glg 3.07"""
+    return F_t * K_A * K_V
+def K_s(stützwirkung : bool, bild3_2 : Bild3_2):
+    """Bild 3.2"""
+    match bild3_2:
+        case Bild3_2.a:
+            return 0.48 if stützwirkung else 0.8
+        case Bild3_2.b:
+            return -0.48 if stützwirkung else -0.8
+        case Bild3_2.c:
+            return 1.33
+        case Bild3_2.d:
+            return -0.36 if stützwirkung else -0.6
+        case Bild3_2.e:
+            return -0.6 if stützwirkung else -1.0
+def f_sh(F_m : float, d : float, b : float, doppelschrägverzahnt : bool, A : Tabelle3_2, s : float,
+         stützwirkung : Optional[bool] = None,
+         bild3_2 : Optional[Bild3_2] = None,
+         l : Optional[float] = None,
+         d_sh : Optional[float] = None) -> float:
+    """Glg 3.14, 3.15"""
+    temp = 0. if s == 0 else K_s(stützwirkung, bild3_2) * l * s / d**2 * (d / d_sh)**4
+
+    if not doppelschrägverzahnt:
+        print(F_m)
+        print(b)
+        print(A)
+        return F_m / b * A * (abs(1 + temp - 0.3) + 0.3) * (b / d)**2
+    else:
+        b_B = b / 2
+        return F_m / b * 2 * A * (abs(1.5 + temp - 0.3) + 0.3) * (b_B / d)**2
+def F_betax(d : float, f_sh : float, f_ma : float, doppelschrägverzahnt : bool, s : float,
+            bild3_1 : Optional[Bild3_1],
+            bild3_2 : Optional[Bild3_2] = None,
+            stützwirkung : Optional[bool] = None,
+            l : Optional[float] = None,
+            d_sh : Optional[float] = None) -> float:
+    """Glg 3.09"""
+    
+    if f_ma == 0:
+        return abs(1.33 * f_sh)
+    else:
+        match bild3_1:
+            case Bild3_1.a | Bild3_1.f:
+                multi = -1
+            case Bild3_1.b | Bild3_1.e:
+                multi = 1
+            case Bild3_1.c:
+                B_s = 1.5 if doppelschrägverzahnt else 1
+                multi = 1 if abs(K_s(stützwirkung, bild3_2)) * l * s / d**2 * (d / d_sh)**4 <= B_s else -1
+            case Bild3_1.d:
+                B_s = 1.5 if doppelschrägverzahnt else 1
+                multi = 1 if abs(K_s(stützwirkung, bild3_2)) * l * s / d**2 * (d / d_sh)**4 >= B_s - 0.3 else -1
+        return abs(1.33 * f_sh + multi * f_ma)
+def _y_beta(werkstoff : din3990_5.Werkstoff, v : float, F_betax : float):
+    """Abschnitt 3.4.2.6"""
+    match werkstoff.art:
+        case din3990_5.Werkstoff.Art.Baustahl | din3990_5.Werkstoff.Art.Vergütungsstahl | din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit | din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit:
+            # Glg 3.16
+            y_beta = 320 / werkstoff.sigma_Hlim * F_betax
+            if v <= 5:
+                pass
+            elif v <= 10:
+                assert y_beta <= 25600 / werkstoff.sigma_Hlim
+            else:
+                assert y_beta <= 12800 / werkstoff.sigma_Hlim
+            return y_beta
+        case din3990_5.Werkstoff.Art.Grauguß | din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit:
+            # Glg 3.17
+            y_beta = 0.55 * F_betax
+            if v <= 5:
+                pass
+            elif v <= 10:
+                assert y_beta <= 45
+            else:
+                assert y_beta <= 22
+            return y_beta
+        case (din3990_5.Werkstoff.Art.Einsatzstahl |
+              din3990_5.Werkstoff.Art.InduktionsgehärteterStahl | din3990_5.Werkstoff.Art.FlammgehärteterStahl |
+              din3990_5.Werkstoff.Art.Nitrierstahl | din3990_5.Werkstoff.Art.NitrierterEinsatzstahl |
+              din3990_5.Werkstoff.Art.NitrokarburierterEinsatzstahl |
+              din3990_5.Werkstoff.Art.InduktionsgehärtetesGußeisen | din3990_5.Werkstoff.Art.FlammgehärtetesGußeisen
+              ):
+            y_beta = 0.15 * F_betax
+            assert y_beta <= 6
+            return y_beta
+    raise NotImplementedError
+def y_beta(werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff], v : float, F_betax : float):
+    return (_y_beta(werkstoff[Ritzel], v, F_betax) + _y_beta(werkstoff[Rad], v, F_betax)) / 2
+def F_betay(F_betax : float, y_beta : float):
+    return F_betax - y_beta
+def K_Hbeta(F_t : float, K_A : float, K_V : float, v : float, d : float, b : float, doppelschrägverzahnt : bool, werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff], A : Tabelle3_2, s : float,
+            bild3_1 : Optional[Bild3_2] = None,
+            bild3_2 : Optional[Bild3_2] = None,
+            stützwirkung : Optional[bool] = None,
+            l : Optional[float] = None,
+            d_sh : Optional[float] = None,
+            _print = print):
+    """Abschnitt 3.4"""
+
+    # Abschnitt 3.4.1
+    assert(F_t / b * K_A >= 100)
+
+    _F_m = F_m(F_t, K_A, K_V)
+    _print("F_m =", _F_m)
+
+    _f_sh = f_sh(_F_m, d, b, doppelschrägverzahnt, A, s, stützwirkung, bild3_2, l, d_sh)
+    _print("f_sh =", _f_sh)
+
+    _F_betax = F_betax(d, _f_sh, 0, doppelschrägverzahnt, s, bild3_1, stützwirkung, bild3_2, l, d_sh)
+    _print("F_betax =", _F_betax)
+
+    _y_beta = y_beta(werkstoff, v, _F_betax)
+    _print("y_beta =", _y_beta)
+
+    _F_betay = F_betay(_F_betax, _y_beta)
+    _print("F_betay =", _F_betay)
+
+    # Abschnitt 3.4.3.1
+    c_gamma = 20
+    _print("c_γ =", c_gamma)
+
+    # Glg 3.20, 3.21
+    _K_Hbeta = 1 + c_gamma * _F_betay / (2 * _F_m / b)
+    if _K_Hbeta <= 2:
+        pass
+    else:
+        _K_Hbeta = m.sqrt(2 * c_gamma * _F_betay / (_F_m / b))
+        assert _K_Hbeta > 2
+    return _K_Hbeta
+
+def K_Fbeta(F_t : float, K_A : float, K_Hbeta : float, b : float, h : float):
+    """Glg 3.22"""
+    assert(F_t / b * K_A >= 100)   # Abschnitt 3.4.1
+    h_b = min(h / b, 1. / 3.)
+    return m.pow(K_Hbeta, (1 / (1 + h_b + h_b**2)))
+
+def K_H_Falpha(K_A : float, F_t : float, b : float, beta_b : float, epsilon_alpha : float, geradverzahnt : bool, werkstoff : din3990_5.Werkstoff,
+               verzahnungsqualität : tuple[Verzahnungsqualität, Verzahnungsqualität], Z_epsilon : float, Y_epsilon : float):
+    """
+    K_Hα und K_Fα
+    Tabelle 3.3
+    """
+    linienbelastung = F_t / b * K_A
+    qualität = Verzahnungsqualität(max(vq + 99 if Verzahnungsqualität.DIN6 <= vq <= Verzahnungsqualität.DIN12 else vq for vq in verzahnungsqualität))
+
+    if werkstoff.art in (din3990_5.Werkstoff.Art.Einsatzstahl,
+                         din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl,
+                         din3990_5.Werkstoff.Art.InduktionsgehärtetesGußeisen, din3990_5.Werkstoff.Art.FlammgehärtetesGußeisen,
+                         din3990_5.Werkstoff.Art.Nitrierstahl, din3990_5.Werkstoff.Art.NitrierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrierterEinsatzstahl,
+                         din3990_5.Werkstoff.Art.NitrokarburierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrokarburierterEinsatzstahl):
+        if geradverzahnt:
+            if linienbelastung > 100:
+                match qualität:
+                    case Verzahnungsqualität.ISO5 | Verzahnungsqualität.ISO6:
+                        return 1., 1.
+                    case Verzahnungsqualität.ISO7:
+                        return 1.1, 1.1
+                    case Verzahnungsqualität.ISO8:
+                        return 1.2, 1.2
+                    case Verzahnungsqualität.ISO9 | Verzahnungsqualität.ISO10 | Verzahnungsqualität.ISO11 | Verzahnungsqualität.ISO12:
+                        K_H = 1 / Z_epsilon**2
+                        K_F = 1 / Y_epsilon**2
+                        assert K_H >= 1.2
+                        assert K_F >= 1.2
+                        return K_H, K_F
+            else:
+                if qualität >= Verzahnungsqualität.ISO5:
+                    K_H = 1 / Z_epsilon**2
+                    K_F = 1 / Y_epsilon**2
+                    assert K_H >= 1.2
+                    assert K_F >= 1.2
+                    return K_H, K_F
+        else:
+            if linienbelastung > 100:
+                match qualität:
+                    case Verzahnungsqualität.ISO5:
+                        return 1., 1.
+                    case Verzahnungsqualität.ISO6:
+                        return 1.1, 1.1
+                    case Verzahnungsqualität.ISO7:
+                        return 1.2, 1.2
+                    case Verzahnungsqualität.ISO8:
+                        return 1.4, 1.4
+                    case Verzahnungsqualität.ISO9 | Verzahnungsqualität.ISO10 | Verzahnungsqualität.ISO11 | Verzahnungsqualität.ISO12:
+                        K = epsilon_alpha / m.cos(m.radians(beta_b))**2
+                        assert K >= 1.4
+                        return K, K
+            else:
+                if qualität >= Verzahnungsqualität.ISO5:
+                    K = epsilon_alpha / m.cos(m.radians(beta_b))**2
+                    assert K >= 1.4
+                    return K, K
+    else:
+        if geradverzahnt:
+            if linienbelastung > 100:
+                match qualität:
+                    case Verzahnungsqualität.ISO5 | Verzahnungsqualität.ISO6 | Verzahnungsqualität.ISO7:
+                        return 1., 1.
+                    case Verzahnungsqualität.ISO8:
+                        return 1.1, 1.1
+                    case Verzahnungsqualität.ISO9:
+                        return 1.2, 1.2
+                    case Verzahnungsqualität.ISO10 | Verzahnungsqualität.ISO11 | Verzahnungsqualität.ISO12:
+                        K_H = 1 / Z_epsilon**2
+                        K_F = 1 / Y_epsilon**2
+                        assert K_H >= 1.2
+                        assert K_F >= 1.2
+                        return K_H, K_F
+            else:
+                if qualität >= Verzahnungsqualität.ISO5:
+                    K_H = 1 / Z_epsilon**2
+                    K_F = 1 / Y_epsilon**2
+                    assert K_H >= 1.2
+                    assert K_F >= 1.2
+                    return K_H, K_F
+        else:
+            if linienbelastung > 100:
+                match qualität:
+                    case Verzahnungsqualität.ISO5 | Verzahnungsqualität.ISO6:
+                        return 1., 1.
+                    case Verzahnungsqualität.ISO7:
+                        return 1.1, 1.1
+                    case Verzahnungsqualität.ISO8:
+                        return 1.2, 1.2
+                    case Verzahnungsqualität.ISO9:
+                        return 1.4, 1.4
+                    case Verzahnungsqualität.ISO10 | Verzahnungsqualität.ISO11 | Verzahnungsqualität.ISO12:
+                        K = epsilon_alpha / m.cos(m.radians(beta_b))**2
+                        assert K >= 1.4
+                        return K, K
+            else:
+                if qualität >= Verzahnungsqualität.ISO5:
+                    K = epsilon_alpha / m.cos(m.radians(beta_b))**2
+                    assert K >= 1.4
+                    return K, K
+    raise ValueError(f"Unerwartete Verzahnungsqualität {qualität}")
+
+def M_1(z : tuple[int, int], d_a : tuple[float, float], d_b : tuple[float, float], alpha_wt : float, epsilon_alpha : float):
+    """Glg 4.12"""
+    return m.tan(m.radians(alpha_wt)) / m.sqrt(
+            (m.sqrt(d_a[Ritzel]**2 / d_b[Ritzel]**2 - 1) - 2 * m.pi / z[Ritzel]) *
+            (m.sqrt(d_a[Rad]**2 / d_b[Rad]**2 - 1) - (epsilon_alpha - 1) * 2 * m.pi / z[Rad]))
+def Z_B(z : tuple[int, int], d_a : tuple[float, float], d_b : tuple[float, float], alpha_wt : float, epsilon_alpha : float, epsilon_beta : float, geradverzahnt : bool, _print = print):
+    """Abschnitt 4.2"""
+    
+    # Glg 4.12
+    _M_1 = M_1(z, d_a, d_b, alpha_wt, epsilon_alpha)
+    _print("M_1 =", _M_1)
+
+    if geradverzahnt:
+        return max(1., _M_1)
+    elif epsilon_beta >= 1:
+        return 1.
+    else:
+        return max(1., _M_1 - epsilon_beta * (_M_1 - 1))
+
+def M_2(z : tuple[int, int], d_a : tuple[float, float], d_b : tuple[float, float], alpha_wt : float, epsilon_alpha : float):
+    """Glg 4.13"""
+    return m.tan(m.radians(alpha_wt)) / m.sqrt(
+            (m.sqrt(d_a[Rad]**2 / d_b[Rad]**2 - 1) - 2 * m.pi / z[Rad]) *
+            (m.sqrt(d_a[Ritzel]**2 / d_b[Ritzel]**2 - 1) - (epsilon_alpha - 1) * 2 * m.pi / z[Ritzel]))
+def Z_D(z : tuple[int, int], d_a : tuple[float, float], d_b : tuple[float, float], alpha_wt : float, epsilon_alpha : float, epsilon_beta : float, geradverzahnt : bool, innenverzahnt : bool, _print = print):
+    """Abschnitt 4.2"""
+
+    if innenverzahnt:
+        return 1.
+
+    # Glg 4.12
+    _M_2 = M_2(z, d_a, d_b, alpha_wt, epsilon_alpha)
+    _print("M_2 =", _M_2)
+
+    if geradverzahnt == 0:
+        return max(1., _M_2)
+    elif epsilon_beta >= 1:
+        return 1.
+    else:
+        return max(1., _M_2 - epsilon_beta * (_M_2 - 1))
+
+def Z_H(alpha_t : float, alpha_wt : float, beta_b : float):
+    """Glg 4.14"""
+    return m.sqrt(2 * m.cos(m.radians(beta_b)) * m.cos(m.radians(alpha_wt))
+                          / m.cos(m.radians(alpha_t))**2 / m.sin(m.radians(alpha_wt)))
+
+def Z_E(werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff]):
+    """Tabelle 4.1"""
+    ws1, ws2 = werkstoff
+    if ws1 in _WerkstoffKategorie.Stahl:
+        if ws2 in _WerkstoffKategorie.Stahl:
+            return 189.8
+        elif ws2 in _WerkstoffKategorie.Stahlguß:
+            return 188.9
+        elif ws2 in _WerkstoffKategorie.GußeisenMitKugelgraphit:
+            return 181.4
+        elif ws2 in _WerkstoffKategorie.GußeisenMitLamellengraphit:
+            return 165.4
+    elif ws1 in _WerkstoffKategorie.Stahlguß:
+        if ws2 in _WerkstoffKategorie.Stahl:
+            return 188.9
+        elif ws2 in _WerkstoffKategorie.Stahlguß:
+            return 188.0
+        elif ws2 in _WerkstoffKategorie.GußeisenMitKugelgraphit:
+            return 180.5
+        elif ws2 in _WerkstoffKategorie.GußeisenMitLamellengraphit:
+            return 161.4
+    elif ws1 in _WerkstoffKategorie.GußeisenMitKugelgraphit:
+        if ws2 in _WerkstoffKategorie.Stahl:
+            return 181.4
+        elif ws2 in _WerkstoffKategorie.Stahlguß:
+            return 180.5
+        elif ws2 in _WerkstoffKategorie.GußeisenMitKugelgraphit:
+            return 173.9
+        elif ws2 in _WerkstoffKategorie.GußeisenMitLamellengraphit:
+            return 156.6
+    elif ws1 in _WerkstoffKategorie.GußeisenMitLamellengraphit:
+        if ws2 in _WerkstoffKategorie.Stahl:
+            return 165.4
+        elif ws2 in _WerkstoffKategorie.Stahlguß:
+            return 161.4
+        elif ws2 in _WerkstoffKategorie.GußeisenMitKugelgraphit:
+            return 156.6
+        elif ws2 in _WerkstoffKategorie.GußeisenMitLamellengraphit:
+            return 146.0
+    raise NotImplementedError
+
+def Z_epsilon(beta : float, epsilon_alpha : float, epsilon_beta : float):
+    """Abschnitt 4.5"""
+    if beta == 0:
+        return m.sqrt((4. - epsilon_alpha) / 3.)
+    elif epsilon_beta >= 1.:
+        return m.sqrt(1 / epsilon_alpha)
+    else:
+        return m.sqrt((4. - epsilon_alpha) / 3. * (1. - epsilon_beta) + epsilon_beta / epsilon_alpha)
+
+def Z_beta(beta : float):
+    """ Glg 4.18"""
+    return m.sqrt(m.cos(m.radians(beta)))
+
+
+
+def Y_epsilon(epsilon_alpha : float, beta_b : float):
+    """Abschnitt 5.3"""
+    return 0.25 + 0.75 / epsilon_alpha * m.cos(m.radians(beta_b))**2
 
 class DIN_21771:
     def __init__(self,
@@ -133,12 +682,15 @@ class DIN_21771:
         _print()
         return
   
+_K_V = K_V
+_K_Hbeta = K_Hbeta
+_K_Fbeta = K_Fbeta
 class DIN_3990_11:
     def __init__(self,
                 geometrie : DIN_21771,
                 P : float,
                 n_1 : float,
-                verzahnungsqualität : tuple[int, int],
+                verzahnungsqualität : tuple[Verzahnungsqualität, Verzahnungsqualität],
                 werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff],
                 K_A : float,
                 K_S : float,
@@ -147,21 +699,21 @@ class DIN_3990_11:
                 innenverzahnt: bool = False,
                 s_pr: float = 0,
                 
-                K_V : Optional[tuple[float, float]] = None,
-                K_Hbeta : Optional[tuple[float, float]] = None,
-                A : Optional[Tabelle_3_2] = None,
-                f_ma : Optional[tuple[float, float]] = None,
-                bild_3_1 : Optional[tuple[Bild_3_1, Bild_3_1]] = None,
-                s : Optional[tuple[float, float]] = None,
-                stützwirkung : Optional[tuple[bool, bool]] = None,
-                bild_3_2 : Optional[tuple[Bild_3_2, Bild_3_2]] = None,
-                l : Optional[tuple[float, float]] = None,
-                d_sh : Optional[tuple[float, float]] = None,
+                K_V : tuple[Optional[float], Optional[float]] = (None, None),
+                K_Hbeta : tuple[Optional[float], Optional[float]] = (None, None),
+                A : Optional[Tabelle3_2] = None,
+                f_ma : tuple[Optional[float], Optional[float]] = (None, None),
+                bild3_1 : tuple[Optional[Bild3_1], Optional[Bild3_1]] =  (None, None),
+                s : tuple[Optional[float], Optional[float]] = (None, None),
+                stützwirkung : tuple[Optional[bool], Optional[bool]] =  (None, None),
+                bild3_2 : tuple[Optional[Bild3_2], Optional[Bild3_2]] =  (None, None),
+                l : tuple[Optional[float], Optional[float]] = (None, None),
+                d_sh : tuple[Optional[float], Optional[float]] = (None, None),
                 Z_LVRdyn : Optional[float] = None,
                 fertigungsverfahren : Optional[tuple[Fertigungsverfahren, Fertigungsverfahren]] = None,
-                K_Fbeta : Optional[tuple[float, float]] = None,
-                K_Halpha : Optional[tuple[float, float]] = None,
-                K_Falpha : Optional[tuple[float, float]] = None,
+                K_Fbeta : tuple[Optional[float], Optional[float]] = (None, None),
+                K_Halpha : tuple[Optional[float], Optional[float]] = (None, None),
+                K_Falpha : tuple[Optional[float], Optional[float]] = (None, None),
                 
                 S_Hstatmin : float | tuple[float, float] = 1.,
                 S_Hdynmin : float | tuple[float, float] = 1.,
@@ -175,7 +727,7 @@ class DIN_3990_11:
         - geometrie
         - P: Leistung [kW]
         - n_1: Antriebsdrehzahl [1/min]
-        - verzahnungsqualität: siehe Tabelle 3.1
+        - verzahnungsqualität
         - werkstoff
         - K_A: siehe Tabelle A.1
         - K_S: ersetz K_A für die statische Berechnung
@@ -190,19 +742,19 @@ class DIN_3990_11:
         - K_V
         - K_Hbeta
           or 
-            - A: Tabelle_3_2, siehe Tabelle 3.2
-            - f_ma: tuple[float, float], siehe Abschnitt 3.4.2.4
+            - A: siehe Tabelle 3.2
+            - f_ma: siehe Abschnitt 3.4.2.4
               if f_ma != 0:
-                - bild_3_1: tuple[Bild_3_1, Bild_3_1], siehe Bild 3.1
-            - s: tuple[float, float], siehe Bild 3.2
+                - bild3_1: siehe Bild 3.1
+            - s: siehe Bild 3.2
               if s != 0:
-                - stützwirkung: tuple[bool, bool], siehe Bild 3.2
-                - bild_3_2: tuple[Bild_3_2, Bild_3_2], siehe Bild 3.2
-                - l: tuple[float, float], siehe Bild 3.2
-                - d_sh: tuple[float, float], Wellendurchmesser
+                - stützwirkung: siehe Bild 3.2
+                - bild3_2: siehe Bild 3.2
+                - l: siehe Bild 3.2
+                - d_sh: Wellendurchmesser
         - Z_LVRdyn: float, siehe Abschnitt 4.8
           or
-            - fertigungsverfahren: tuple[Fertigungsverfahren, Fertigungsverfahren], siehe Abschnitt 4.8
+            - fertigungsverfahren: siehe Abschnitt 4.8
         - K_Fbeta
         - K_Halpha
         - K_Falpha
@@ -228,10 +780,10 @@ class DIN_3990_11:
         self.K_Hbeta = K_Hbeta
         self.A = A
         self.f_ma = f_ma
-        self.bild_3_1 = bild_3_1
+        self.bild3_1 = bild3_1
         self.s = s
         self.stützwirkung = stützwirkung
-        self.bild_3_2 = bild_3_2
+        self.bild3_2 = bild3_2
         self.l = l
         self.d_sh = d_sh
         self.Z_LVRdyn = Z_LVRdyn
@@ -253,14 +805,20 @@ class DIN_3990_11:
             if _assert:
                 assert res
 
-        assert all(vq in range(6, 13) for vq in self.verzahnungsqualität)
-        
+
+        geradverzahnt = self.geometrie.beta == 0
+
+        assert all(n <= 3600 for n in self.n), "Drehzahl darf nicht größer als 3600 sein (siehe Abschnitt 1.2)"
+        #assert False, "(siehe Abschnitt 1.3c)"
+        assert self.geometrie.beta <= 30, "β darf nicht größer als 30° sein (siehe Abschnitt 1.3d)"
+        assert not (self.doppelschrägverzahnt and geradverzahnt), "Ein doppelschrägverzahntes Getriebe kann nicht geradverzahnt sein"
+
         _print("DIN 3990-11")
         _print("n =", self.n)
 
-        if self.doppelschrägverzahnt:
-            self.b_B = self.geometrie.b / 2
-            _print("b_B =", self.b_B)
+        # if self.doppelschrägverzahnt:
+        #     self.b_B = self.geometrie.b / 2
+        #     _print("b_B =", self.b_B)
 
         self.v = v(self.n[Ritzel], self.geometrie.d[Ritzel])
         _print("v =", self.v)
@@ -268,300 +826,49 @@ class DIN_3990_11:
         self.F_t = F_t(self.P, self.n[Ritzel], self.geometrie.d[Ritzel])
         _print("F_t =", self.F_t)
   
-        self.T = T(self.P, self.n[Ritzel]), T(self.P, self.n[Rad])
+        self.T = tuple(T(self.P, self.n[idx]) for idx in _indices)
         _print("T =", self.T)
 
-        if self.K_V == None:
-            self.K_V = _din3990_11.K_V(self.z[Ritzel], self.v, self.geometrie.u, self.F_t, self.K_A, self.geometrie.b, self.geometrie.epsilon_beta,
-                                       self.geometrie.beta == 0, self.verzahnungsqualität, _print)
+        self.K_V = tuple(_K_V(self.geometrie.z[Ritzel], self.v, self.geometrie.u, self.F_t, self.K_A, self.geometrie.b, self.geometrie.epsilon_beta, geradverzahnt, self.verzahnungsqualität[idx],
+                            _print) if K_V is None else K_V for idx, K_V in zip(_indices, self.K_V))
         _print("K_V =", self.K_V)
 
-        if self.K_Hbeta == None:
-            # Abschnitt 3.4.1
-            assert(self.F_t / self.geometrie.b * self.K_A >= 100)
-
-            # Glg 3.07
-            def F_m(idx) -> float:
-                return self.F_t * self.K_A * self.K_V[idx]
-            self.F_m = F_m(Ritzel), F_m(Rad)
-            _print("F_m =", self.F_m)
-
-            def K_s(idx):
-                stütz = self.stützwirkung[idx]
-                match self.bild_3_2[idx]:
-                    case Bild_3_2.a:
-                        return 0.48 if stütz else 0.8
-                    case Bild_3_2.b:
-                        return -0.48 if stütz else -0.8
-                    case Bild_3_2.c:
-                        return 1.33
-                    case Bild_3_2.d:
-                        return -0.36 if stütz else -0.6
-                    case Bild_3_2.e:
-                        return -0.6 if stütz else -1.0
-                raise ValueError("Unknown bild_3_2 option ", self.bild_3_2[idx])
-
-            # Glg 3.14, 3.15
-            def f_sh(idx) -> float:
-                def temp(idx) -> float:
-                    return 0. if self.s[idx] == 0 else K_s(idx) * self.l[idx] * self.s[idx] / self.geometrie.d[Ritzel]**2 * (self.geometrie.d[Ritzel] / self.d_sh[idx])**4
-                if self.A == Tabelle_3_2.ohneBreitenballigkeltOderEndrücknahme:
-                    A = 0.023
-                elif self.A == Tabelle_3_2.mitSinnvollerBreitenballigkeit:
-                    A = 0.012
-                elif self.A == Tabelle_3_2.mitSinnvollerEndrücknahme:
-                    A = 0.016
-
-                if not self.doppelschrägverzahnt:
-                    return self.F_m[idx] / self.geometrie.b * A * (abs(1 + temp(idx) - 0.3) + 0.3) * (self.geometrie.b / self.geometrie.d[Ritzel])**2
-                else:
-                    return self.F_m[idx] / self.geometrie.b * 2 * A * (abs(1.5 + temp(idx) - 0.3) + 0.3) * (self.b_B / self.geometrie.d[Ritzel])**2
-            self.f_sh = f_sh(Ritzel), f_sh(Rad)
-            _print("f_sh =", self.f_sh)
-
-            # Glg 3.09
-            def F_betax(idx) -> float:
-                def multi(idx):
-                    match self.bild_3_1[idx]:
-                        case Bild_3_1.a | Bild_3_1.f:
-                            return -1
-                        case Bild_3_1.b | Bild_3_1.e:
-                            return 1
-                        case Bild_3_1.c:
-                            B_s = 1.5 if self.doppelschrägverzahnt else 1
-                            return 1 if abs(self.K_s) * self.l * self.s / self.d[Ritzel]**2 * (self.d[Ritzel] / self.d_sh[Ritzel])**4 <= B_s else -1
-                        case Bild_3_1.d:
-                            B_s = 1.5 if self.doppelschrägverzahnt else 1
-                            return 1 if abs(self.K_s) * self.l * self.s / self.d[Ritzel]**2 * (self.d[Ritzel] / self.d_sh[Ritzel])**4 >= B_s - 0.3 else -1
-                        case _:
-                            raise ValueError("Unknown bild_3_1 option ", self.bild_3_1[idx])
-                if self.f_ma[idx] == 0:
-                    return abs(1.33 * self.f_sh[idx])
-                else:
-                    return abs(1.33 * self.f_sh[idx] + multi(idx) * self.f_ma[idx])
-            self.F_betax = F_betax(Ritzel), F_betax(Rad)
-            _print("F_betax =", self.F_betax)
-
-            # Abschnitt 3.4.2.6
-            def y_beta(idx : int):
-                werkstoff = self.werkstoff[idx]
-                match werkstoff.art:
-                    case din3990_5.Werkstoff.Art.Stahl | din3990_5.Werkstoff.Art.Vergütungsstahl | din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit | din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit:
-                        y_beta = 320 / werkstoff.sigma_Hlim * self.F_betax[idx]
-                        if self.v <= 5:
-                            pass
-                        elif self.v <= 10:
-                            assert y_beta <= 25600 / werkstoff.sigma_Hlim
-                        else:
-                            assert y_beta <= 12800 / werkstoff.sigma_Hlim
-                        return y_beta
-                    case din3990_5.Werkstoff.Art.Grauguß | din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit:
-                        y_beta = 0.55 * self.F_betax[idx]
-                        if self.v <= 5:
-                            pass
-                        elif self.v <= 10:
-                            assert y_beta <= 45
-                        else:
-                            assert y_beta <= 22
-                        return y_beta
-                    case din3990_5.Werkstoff.Art.Einsatzstahl | din3990_5.Werkstoff.Art.nitrierterStahl | din3990_5.Werkstoff.Art.nitrokarburierterStahl:
-                        y_beta = 0.15 * self.F_betax[idx]
-                        assert y_beta <= 6
-                        return y_beta
-                raise NotImplementedError
-            self.y_beta = (y_beta(Ritzel) + y_beta(Rad)) / 2
-            _print("y_beta =", self.y_beta)
-
-            # Glg 3.08
-            def F_betay(idx):
-                return self.F_betax[idx] - self.y_beta
-            self.F_betay = F_betay(Ritzel), F_betay(Rad)
-            _print("F_betay =", self.F_betay)
-
-            # Abschnitt 3.4.3.1
-            self.c_gamma = 20
-            _print("c_gamma =", self.c_gamma)
-
-            # Glg 3.20, 3.21
-            def K_Hbeta(idx):
-                val = 1 + self.c_gamma * self.F_betay[idx] / (2 * self.F_m[idx] / self.geometrie.b)
-                if val <= 2:
-                    return val
-                return m.sqrt(2 * self.c_gamma * self.F_betay[idx] / (self.F_m[idx] / self.geometrie.b))
-            self.K_Hbeta = K_Hbeta(Ritzel), K_Hbeta(Rad)
+        self.K_Hbeta = tuple(_K_Hbeta(self.F_t, self.K_A, self.K_V[idx], self.v, self.geometrie.d[idx], self.geometrie.b, self.doppelschrägverzahnt, self.werkstoff, self.A, self.s[idx],
+                                    self.bild3_1[idx], self.bild3_2, self.stützwirkung, self.l, self.d_sh, _print) if K_Hbeta is None else K_Hbeta for idx, K_Hbeta in zip(_indices, self.K_Hbeta))
         _print("K_Hβ =", self.K_Hbeta)
         
-        # Glg 3.22
-        if self.K_Fbeta == None:
-            def K_Fbeta(idx):
-                h_b = min(self.geometrie.h / self.geometrie.b, 1. / 3.)
-                return m.pow(self.K_Hbeta[idx], (1 / (1 + h_b + h_b**2)))
-
-            assert(self.F_t / self.geometrie.b * self.K_A >= 100)   # Abschnitt 3.4.1
-            self.K_Fbeta = K_Fbeta(Ritzel), K_Fbeta(Rad)
+        self.K_Fbeta = tuple(_K_Fbeta(self.F_t, self.K_A, self.K_Hbeta[idx], self.geometrie.b, self.geometrie.h) if K_Fbeta is None else K_Fbeta for idx, K_Fbeta in zip(_indices, self.K_Fbeta))
         _print("K_Fβ =", self.K_Fbeta)
         
-        # Abschnitt 4.5
-        if self.geometrie.beta == 0:
-            self.Z_epsilon = m.sqrt((4. - self.geometrie.epsilon_alpha) / 3.)
-        elif self.geometrie.epsilon_beta >= 1.:
-            self.Z_epsilon = m.sqrt(1 / self.geometrie.epsilon_alpha)
-        else:
-            self.Z_epsilon = m.sqrt((4. - self.geometrie.epsilon_alpha) / 3. * (1. - self.geometrie.epsilon_beta) + self.geometrie.epsilon_beta / self.geometrie.epsilon_alpha)
+        self.Z_epsilon = Z_epsilon(self.geometrie.beta, self.geometrie.epsilon_alpha, self.geometrie.epsilon_beta)
         _print("Z_ε =", self.Z_epsilon)
 
-        # Glg 5.09
-        self.Y_epsilon = 0.25 + 0.75 / self.geometrie.epsilon_alpha * m.cos(m.radians(self.geometrie.beta_b))**2
+        self.Y_epsilon = Y_epsilon(self.geometrie.epsilon_alpha, self.geometrie.beta_b)
         _print("Y_ε =", self.Y_epsilon)
 
-        # Tabelle 3.3
-        def K_Halpha_und_Falpha(idx : int):
-            linienbelastung = self.F_t / self.geometrie.b * self.K_A
-            art = self.werkstoff[idx].art
-            qualität = min(self.verzahnungsqualität)
-
-            if art in (din3990_5.Werkstoff.Art.einsatzgehärteterStahl, din3990_5.Werkstoff.Art.nitrierterStahl, din3990_5.Werkstoff.Art.nitrokarburierterStahl):
-                if self.geometrie.beta == 0:
-                    if linienbelastung > 100:
-                        match qualität:
-                            case 6 | 7:
-                                return 1., 1.
-                            case 8:
-                                return 1.1, 1.1
-                            case 9:
-                                return 1.2, 1.2
-                            case 10 | 11 | 12:
-                                K_H = 1 / self.Z_epsilon**2
-                                K_F = 1 / self.Y_epsilon**2
-                                assert K_H >= 1.2
-                                assert K_F >= 1.2
-                                return K_H, K_F
-                    else:
-                        if qualität <= 6:
-                            K_H = 1 / self.Z_epsilon**2
-                            K_F = 1 / self.Y_epsilon**2
-                            assert K_H >= 1.2
-                            assert K_F >= 1.2
-                            return K_H, K_F
-                else:
-                    if linienbelastung > 100:
-                        match qualität:
-                            case 6:
-                                return 1., 1.
-                            case 7:
-                                return 1.1, 1.1
-                            case 8:
-                                return 1.2, 1.2
-                            case 9:
-                                return 1.4, 1.4
-                            case 10 | 11 | 12:
-                                K = self.geometrie.epsilon_alpha / m.cos(m.radians(self.geometrie.beta_b))**2
-                                assert K >= 1.4
-                                return K, K
-                    else:
-                        if qualität <= 6:
-                            K = self.geometrie.epsilon_alpha / m.cos(m.radians(self.geometrie.beta_b))**2
-                            assert K >= 1.4
-                            return K, K
-            else:
-                if self.geometrie.beta == 0:
-                    if linienbelastung > 100:
-                        match qualität:
-                            case 6 | 7 | 8:
-                                return 1., 1.
-                            case 9:
-                                return 1.1, 1.1
-                            case 10:
-                                return 1.2, 1.2
-                            case 11 | 12:
-                                K_H = 1 / self.Z_epsilon**2
-                                K_F = 1 / self.Y_epsilon**2
-                                assert K_H >= 1.2
-                                assert K_F >= 1.2
-                                return K_H, K_F
-                    else:
-                        if qualität <= 6:
-                            K_H = 1 / self.Z_epsilon**2
-                            K_F = 1 / self.Y_epsilon**2
-                            assert K_H >= 1.2
-                            assert K_F >= 1.2
-                            return K_H, K_F
-                else:
-                    if linienbelastung > 100:
-                        match qualität:
-                            case 6 | 7:
-                                return 1., 1.
-                            case 8:
-                                return 1.1, 1.1
-                            case 9:
-                                return 1.2, 1.2
-                            case 10:
-                                return 1.4, 1.4
-                            case 11 | 12:
-                                K = self.geometrie.epsilon_alpha / m.cos(m.radians(self.geometrie.beta_b))**2
-                                assert K >= 1.4
-                                return K, K
-                    else:
-                        if qualität <= 6:
-                            K = self.geometrie.epsilon_alpha / m.cos(m.radians(self.geometrie.beta_b))**2
-                            assert K >= 1.4
-                            return K, K
-
-            raise ValueError
-        K_ritzel = K_Halpha_und_Falpha(Ritzel)
-        K_rad = K_Halpha_und_Falpha(Rad)
-        if self.K_Halpha == None:
-            self.K_Halpha = K_ritzel[0], K_rad[0]
+        K_H_Falpha_ritzel, K_H_Falpha_rad = (K_H_Falpha(self.K_A, self.F_t, self.geometrie.b, self.geometrie.beta_b, self.geometrie.epsilon_alpha, geradverzahnt, self.werkstoff[idx],
+                                       self.verzahnungsqualität, self.Z_epsilon, self.Y_epsilon) for idx in _indices)
+        self.K_Halpha = K_H_Falpha_ritzel[0] if self.K_Halpha[0] is None else self.K_Halpha[0], K_H_Falpha_rad[0] if self.K_Halpha[1] is None else self.K_Halpha[1]
         _print("K_Hα =", self.K_Halpha)
-        if self.K_Falpha == None:
-            self.K_Falpha = K_ritzel[1], K_rad[1]
+        self.K_Falpha = K_H_Falpha_ritzel[1] if self.K_Falpha[0] is None else self.K_Falpha[0], K_H_Falpha_rad[1] if self.K_Falpha[1] is None else self.K_Falpha[1]
         _print("K_Fα =", self.K_Falpha)
 
         # Grübchentragfähigkeit
         
-        # Glg 4.12
-        self.M_1 = m.tan(m.radians(self.geometrie.alpha_wt)) / m.sqrt(
-            (m.sqrt(self.geometrie.d_a[Ritzel]**2 / self.geometrie.d_b[Ritzel]**2 - 1) - 2 * m.pi / self.geometrie.z[Ritzel]) *
-            (m.sqrt(self.geometrie.d_a[Rad]**2 / self.geometrie.d_b[Rad]**2 - 1) - (self.geometrie.epsilon_alpha - 1) * 2 * m.pi / self.geometrie.z[Rad]))
-        _print("M_1 =", self.M_1)
-
-        # Glg 4.13
-        self.M_2 = m.tan(m.radians(self.geometrie.alpha_wt)) / m.sqrt(
-            (m.sqrt(self.geometrie.d_a[Rad]**2 / self.geometrie.d_b[Rad]**2 - 1) - 2 * m.pi / self.geometrie.z[Rad]) *
-            (m.sqrt(self.geometrie.d_a[Ritzel]**2 / self.geometrie.d_b[Ritzel]**2 - 1) - (self.geometrie.epsilon_alpha - 1) * 2 * m.pi / self.geometrie.z[Ritzel]))
-        _print("M_2 =", self.M_2)
-
-        # Abschnitt 4.2
-        if self.geometrie.beta == 0:
-            self.Z_B = max(1., self.M_1)
-            self.Z_D = max(1., self.M_2)
-        elif self.geometrie.epsilon_beta >= 1:
-            self.Z_B = 1.
-            self.Z_D = 1.
-        else:
-            self.Z_B = max(1., self.M_1 - self.geometrie.epsilon_beta * (self.M_1 - 1))
-            self.Z_D = max(1., self.M_2 - self.geometrie.epsilon_beta * (self.M_2 - 1))
-        if self.innenverzahnt:
-            self.Z_D = 1.
+        self.Z_B = Z_B(self.geometrie.z, self.geometrie.d_a, self.geometrie.d_b, self.geometrie.alpha_wt, self.geometrie.epsilon_alpha, self.geometrie.epsilon_beta, geradverzahnt, _print)
         _print("Z_B =", self.Z_B)
+
+        self.Z_D = Z_D(self.geometrie.z, self.geometrie.d_a, self.geometrie.d_b, self.geometrie.alpha_wt, self.geometrie.epsilon_alpha, self.geometrie.epsilon_beta, geradverzahnt,
+                       self.innenverzahnt, _print)
         _print("Z_D =", self.Z_D)
 
-        # Glg. 4.14
-        self.Z_H = m.sqrt(2 * m.cos(m.radians(self.geometrie.beta_b)) * m.cos(m.radians(self.geometrie.alpha_wt))
-                          / m.cos(m.radians(self.geometrie.alpha_t))**2 / m.sin(m.radians(self.geometrie.alpha_wt)))
+        self.Z_H = Z_H(self.geometrie.alpha_t, self.geometrie.alpha_wt, self.geometrie.beta_b)
         _print("Z_H =", self.Z_H)
 
-        # Tabelle 4.1
-        ws1, ws2 = self.werkstoff
-        stahl = (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.vergüteterStahl, din3990_5.Werkstoff.Art.einsatzgehärteterStahl, din3990_5.Werkstoff.Art.randschichtgehärteterStahl, din3990_5.Werkstoff.Art.nitrierterStahl, din3990_5.Werkstoff.Art.nitrokarburierterStahl)
-        if ws1.art in stahl and ws2.art in stahl:
-            self.Z_E = 189.8
-        else:
-            raise NotImplementedError
+        self.Z_E = Z_E(self.werkstoff)
         _print("Z_E =", self.Z_E)
 
-        # Glg 4.18
-        self.Z_beta = m.sqrt(m.cos(m.radians(self.geometrie.beta)))
+        self.Z_beta = Z_beta(self.geometrie.beta)
         _print("Z_β =", self.Z_beta)
 
         # Glg 4.20
@@ -815,7 +1122,7 @@ class DIN_3990_11:
         _print("Y_β =", self.Y_beta)
  
         # Tabelle 5.8
-        epsilon_alphan = self.geometrie.epsilon_alpha / m.cos(m.radians(self.geometrie.beta_b))**2
+        epsilon_alphan = epsilon_alphan(self.geometrie.epsilon_alpha, self.geometrie.beta_b)
         _print("ε_αn =", epsilon_alphan)
         def Y_S(idx):
             assert 1 <= self.s_Fn[idx] / self.h_Fa[idx] <= 1.2

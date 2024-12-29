@@ -177,14 +177,14 @@ def test_1():
 
     getriebe = din3990_11.DIN_3990_11(geometrie = geometrie, P = 55,
                 n_1 = 980,
-                verzahnungsqualität = (6, 7),
+                verzahnungsqualität = (din3990_11.Verzahnungsqualität.DIN6, din3990_11.Verzahnungsqualität.DIN7),
                 werkstoff = (werkstoff, werkstoff),
                 K_A = 1.75,
                 K_S = 2.5,
                 R_z = (5, 5),
                 s_pr = 0,
 
-                A = din3990_11.Tabelle_3_2.ohneBreitenballigkeltOderEndrücknahme,
+                A = din3990_11.Tabelle3_2.ohneBreitenballigkeltOderEndrücknahme,
                 f_ma = (0, 0),  # Annahme, siehe Fußnote 5
                 s = (0, 0),
                 fertigungsverfahren = (din3990_11.Fertigungsverfahren.geläpptGeschliffenGeschabt, din3990_11.Fertigungsverfahren.geläpptGeschliffenGeschabt),
@@ -201,3 +201,5 @@ def test_1():
     assert abs(1.9120087306681766 - getriebe.S_Fdyn[0]) < 0.0001
     assert abs(3.923835519570148 - getriebe.S_Fstat[1]) < 0.0001
     assert abs(1.8787026617886324 - getriebe.S_Fdyn[1]) < 0.0001
+
+test_1()
