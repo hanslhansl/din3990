@@ -20,6 +20,7 @@ def inverse_involute(alpha, anfangswert = 20):
 def interpolate(a : float, b : float, t : float):
     return a - t * (a - b)
 
+dauerfest = float("inf")
 Ritzel = 0
 Rad = 1
 _indices = (Ritzel, Rad)
@@ -84,11 +85,12 @@ class _WerkstoffKategorie:
     GG = Art.Grauguß,
     GGG = Art.PerlitischesGußeisenMitKugelgraphit, Art.BainitischesGußeisenMitKugelgraphit, Art.FerritischesGußeisenMitKugelgraphit
     GTS = Art.SchwarzerTemperguß,
-    ES = Art.Einsatzstahl,
+    Eh = Art.Einsatzstahl,
     IF = Art.InduktionsgehärteterStahl, Art.FlammgehärteterStahl, Art.InduktionsgehärtetesGußeisen, Art.FlammgehärtetesGußeisen
     NT = Art.Nitrierstahl,
     NVnitr = Art.NitrierterVergütungsstahl, Art.NitrierterEinsatzstahl
     NVnitrocar = Art.NitrokarburierterVergütungsstahl, Art.NitrokarburierterEinsatzstahl
+    NTV = Art.Nitrierstahl, Art.NitrierterVergütungsstahl, Art.NitrokarburierterVergütungsstahl, Art.NitrokarburierterEinsatzstahl
 
     # für Tabelle 4.1
     Stahl = (Art.Baustahl, Art.Vergütungsstahl, Art.Einsatzstahl,
@@ -545,7 +547,146 @@ def Z_beta(beta : float):
     """ Glg 4.18"""
     return m.sqrt(m.cos(m.radians(beta)))
 
+def Z_LVRstat():
+    """Glg 4.22"""
+    return 1.
+def Z_LVRdyn(fertigungsverfahren : tuple[Fertigungsverfahren, Fertigungsverfahren], R_z : tuple[float, float], a : float, _print = print):
+    """Abschnitt 4.8a und c"""
+    if fertigungsverfahren[0] == Fertigungsverfahren.wälzgefrästWälzgestoßenWälzgehobelt and fertigungsverfahren[1] == Fertigungsverfahren.wälzgefrästWälzgestoßenWälzgehobelt:
+        return 0.85
 
+    # Glg 4.20
+    R_z100 = sum(R_z) / 2 * m.pow(100 / a, 1/3)
+    _print("R_z100 =", R_z100)
+
+    if fertigungsverfahren[0] == Fertigungsverfahren.geläpptGeschliffenGeschabt and fertigungsverfahren[1] == Fertigungsverfahren.geläpptGeschliffenGeschabt:
+        if R_z100 > 4:
+            # Glg 4.21
+            return 0.92
+        else:
+            # Glg 4.22
+            return 1.
+    else:
+        assert R_z100 <= 4
+        # Glg 4.22
+        return 0.92
+_Z_LVRdyn = Z_LVRdyn
+
+def _Z_W(werkstoff : din3990_5.Werkstoff, anderer_werkstoff : din3990_5.Werkstoff, andere_R_z : float):
+    if andere_R_z <= 6:
+        if (werkstoff.art in _WerkstoffKategorie.St or
+            werkstoff.art in _WerkstoffKategorie.V or
+            werkstoff.art in _WerkstoffKategorie.GGG):
+            if (anderer_werkstoff.art in _WerkstoffKategorie.Eh or
+                anderer_werkstoff.art in _WerkstoffKategorie.IF or
+                anderer_werkstoff.art in _WerkstoffKategorie.NT or
+                anderer_werkstoff.art in _WerkstoffKategorie.NVnitr or
+                anderer_werkstoff.art in _WerkstoffKategorie.NVnitrocar):
+                HB = werkstoff.HB
+                if HB <= 130:
+                    return 1.2
+                elif HB >= 470:
+                    return 1.
+                else:
+                    return 1.2 - (HB - 130) / 1700
+    return 1.
+def Z_W(werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff], R_z : tuple[float, float]):
+    """Abschnitt 4.9"""
+    return _Z_W(werkstoff[0], werkstoff[1], R_z[1]), _Z_W(werkstoff[1], werkstoff[0], R_z[0])
+
+def Z_Xstat():
+    return 1.
+def Z_Xdyn(m_n : float, werkstoff : din3990_5.Werkstoff):
+    """Tabelle 4.2"""
+    if werkstoff.art in (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.Vergütungsstahl, din3990_5.Werkstoff.Art.Grauguß,
+                         din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit,
+                         din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.SchwarzerTemperguß):  # 7
+        return 1.
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Einsatzstahl, din3990_5.Werkstoff.Art.NitrierterEinsatzstahl, din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl,
+                           din3990_5.Werkstoff.Art.InduktionsgehärtetesGußeisen, din3990_5.Werkstoff.Art.FlammgehärtetesGußeisen):  # 5
+        if m_n <= 10:
+            return 1.
+        elif m_n < 30:
+            return 1.05 - 0.005  * m_n
+        else:
+            return 0.9
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Nitrierstahl, din3990_5.Werkstoff.Art.NitrierterVergütungsstahl,
+                           din3990_5.Werkstoff.Art.NitrokarburierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrokarburierterEinsatzstahl):    # 4
+        if m_n <= 7.5:
+            return 1.
+        elif m_n < 30:
+            return 1.08 - 0.011  * m_n
+        else:
+            return 0.75
+    raise ValueError
+
+def Z_NT(werkstoff : din3990_5.Werkstoff):
+    """
+    Z_NTstat, Z_NTdyn
+    Tabelle 4.3
+    """
+    if werkstoff.art in (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.Vergütungsstahl,
+                         din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit,
+                         din3990_5.Werkstoff.Art.SchwarzerTemperguß, din3990_5.Werkstoff.Art.Einsatzstahl,
+                         din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl,
+                         din3990_5.Werkstoff.Art.InduktionsgehärtetesGußeisen, din3990_5.Werkstoff.Art.FlammgehärtetesGußeisen):
+        return 1.6, 1.0
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Grauguß, din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.Nitrierstahl,
+                           din3990_5.Werkstoff.Art.NitrierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrierterEinsatzstahl):
+        return 1.3, 1.0
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.NitrokarburierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrokarburierterEinsatzstahl):
+        return 1.1, 1.0
+    raise ValueError
+
+def sigma_HGstat(werkstoff : din3990_5.Werkstoff, Z_NTstat : float, Z_LVRstat : float, Z_W : float, Z_Xstat : float):
+    """Glg 4.03"""
+    return werkstoff.sigma_Hlim * Z_NTstat * Z_LVRstat * Z_W * Z_Xstat
+def sigma_HGdyn(sigma_HGstat : float, werkstoff : din3990_5.Werkstoff, Z_NTdyn : float, Z_LVRdyn : float, Z_W : float, Z_Xdyn : float, N_L : float, gewisseGrübchenbildung : bool):
+    """Glg 4.03 und Abschnitt 4.1.2b"""
+    sigma_HGdauer = werkstoff.sigma_Hlim * Z_NTdyn * Z_LVRdyn * Z_W * Z_Xdyn
+    if werkstoff.art in (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.Vergütungsstahl,
+                         din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit,
+                         din3990_5.Werkstoff.Art.SchwarzerTemperguß,
+                         din3990_5.Werkstoff.Art.Einsatzstahl, din3990_5.Werkstoff.Art.NitrierterEinsatzstahl, din3990_5.Werkstoff.Art.NitrokarburierterEinsatzstahl,
+                         din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl,
+                         din3990_5.Werkstoff.Art.InduktionsgehärtetesGußeisen, din3990_5.Werkstoff.Art.FlammgehärtetesGußeisen):    # 12
+        if gewisseGrübchenbildung:
+            if N_L <= 6 * 10**5:
+                return sigma_HGstat
+            elif 6 * 10**5 < N_L <= 10**7:
+                # Glg 4.05
+                exp = 0.3705 * m.log10(sigma_HGstat / sigma_HGdauer)
+                # Glg 4.04
+                return sigma_HGdauer * m.pow(3 * 10**8 / N_L, exp)
+            elif 10**7 < N_L <= 10**9:
+                # Glg 4.07
+                exp = 0.2791 * m.log10(sigma_HGstat / sigma_HGdauer)
+                # Glg 4.06
+                return sigma_HGdauer * m.pow(10**9 / N_L, exp)
+            else:
+                return sigma_HGdauer
+        else:
+            if N_L <= 10**5:
+                return sigma_HGstat
+            elif 10**5 < N_L <= 5 * 10**7:
+                # Glg 4.05
+                exp = 0.3705 * m.log10(sigma_HGstat / sigma_HGdauer)
+                # Glg 4.08
+                return sigma_HGdauer * m.pow(5 * 10**7 / N_L, exp)
+            else:
+                return sigma_HGdauer
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.NitrierterVergütungsstahl, din3990_5.Werkstoff.Art.Nitrierstahl, din3990_5.Werkstoff.Art.NitrokarburierterVergütungsstahl,
+                           din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.Grauguß):   # 5
+        if N_L <= 10**5:
+            return sigma_HGstat
+        elif 10**5 < N_L <= 2 * 10**6:
+            # Glg 4.10
+            exp = 0.7686 * m.log10(sigma_HGstat / sigma_HGdauer)
+            # Glg 4.09
+            return sigma_HGdauer * m.pow(2 * 10**6 / N_L, exp)
+        else:
+            return sigma_HGdauer
+    raise NotImplementedError
 
 def Y_epsilon(epsilon_alpha : float, beta_b : float):
     """Abschnitt 5.3"""
@@ -562,6 +703,12 @@ class DIN_21771:
             b : Optional[float] = None,
             b_d_1_verhältnis : Optional[float] = None,
             _print = print):
+        """
+        Parameters:
+        - m_n: Modul
+        - z: Zähnezahlen. z1 ist immer positiv. Für Außenradpaare ist z2 positiv, für Innenradpaare ist z2 negativ.
+        - x: Profilverschiebungsfaktoren
+        """
 
         self.m_n = m_n
         self.z = z
@@ -695,8 +842,10 @@ class DIN_3990_11:
                 K_A : float,
                 K_S : float,
                 R_z: tuple[float, float],
+                N_L : float = dauerfest,
                 doppelschrägverzahnt: bool = False,
                 innenverzahnt: bool = False,
+                gewisseGrübchenbildung : bool = False,
                 s_pr: float = 0,
                 
                 K_V : tuple[Optional[float], Optional[float]] = (None, None),
@@ -732,8 +881,10 @@ class DIN_3990_11:
         - K_A: siehe Tabelle A.1
         - K_S: ersetz K_A für die statische Berechnung
         - R_z: gemittelte Rauhtiefe
+        - N_L: Lastspielzahl
         - doppelschrägverzahnt
         - innenverzahnt
+        - gewisseGrübchenbildung: ob gewisse Grübchenbildung zulässig ist
         - s_pr: float, Fussfreischnitt
         - _print: the function used for printing
         - _assert if True, safety is asserted which additionally requires the same arguments as passed to Getriebe.is_safe()
@@ -772,8 +923,10 @@ class DIN_3990_11:
         self.K_A = K_A
         self.K_S = K_S
         self.R_z = R_z
+        self.N_L = N_L
         self.doppelschrägverzahnt = doppelschrägverzahnt
         self.innenverzahnt = innenverzahnt
+        self.gewisseGrübchenbildung = gewisseGrübchenbildung
         self.s_pr = s_pr
 
         self.K_V = K_V
@@ -871,97 +1024,31 @@ class DIN_3990_11:
         self.Z_beta = Z_beta(self.geometrie.beta)
         _print("Z_β =", self.Z_beta)
 
-        # Glg 4.20
-        self.R_z100 = sum(self.R_z) / 2 * m.pow(100 / self.geometrie.a_w, 1/3)
-        _print("R_z100 =", self.R_z100)
-
         # Glg 4.19
-        self.Z_LVRstat = 1.
+        self.Z_LVRstat = Z_LVRstat()
         if self.Z_LVRdyn == None:
-            if self.fertigungsverfahren == (Fertigungsverfahren.wälzgefrästWälzgestoßenWälzgehobelt, Fertigungsverfahren.wälzgefrästWälzgestoßenWälzgehobelt):
-                self.Z_LVRdyn = 0.85
-                self.Z_LVRdyn
-            elif self.fertigungsverfahren == (Fertigungsverfahren.geläpptGeschliffenGeschabt, Fertigungsverfahren.geläpptGeschliffenGeschabt):
-                if self.R_z100 > 4:
-                    self.Z_LVRdyn = 0.92
-                else:
-                    self.Z_LVRdyn = 1.
-            elif Fertigungsverfahren.wälzgefrästWälzgestoßenWälzgehobelt in self.fertigungsverfahren and Fertigungsverfahren.geläpptGeschliffenGeschabt in self.fertigungsverfahren:
-                assert self.R_z100 <= 4
-                self.Z_LVRdyn = 0.92
-            else:
-                raise ValueError(f"Unknown fertigungsverfahren {self.fertigungsverfahren}")
+            self.Z_LVRdyn = _Z_LVRdyn(self.fertigungsverfahren, self.R_z, self.geometrie.a_w, _print)
         _print("Z_LVRstat =", self.Z_LVRstat)
         _print("Z_LVRdyn =", self.Z_LVRdyn)
 
-        # Glg 4.23
-        wsart1 = self.werkstoff[Ritzel].art
-        wsart2 = self.werkstoff[Rad].art
-        weich = (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.vergüteterStahl)
-        hart = (din3990_5.Werkstoff.Art.einsatzgehärteterStahl, din3990_5.Werkstoff.Art.randschichtgehärteterStahl, din3990_5.Werkstoff.Art.nitrierterStahl, din3990_5.Werkstoff.Art.nitrokarburierterStahl)
-        if (wsart1 in weich or wsart2 in weich) and (wsart1 in hart or wsart2 in hart) and self.R_z <= 6:
-            HB = min(self.werkstoff[Ritzel].HB, self.werkstoff[Rad].HB)
-            if HB < 130:
-                self.Z_W = 1.2
-            elif HB > 470:
-                self.Z_W = 1.
-            else:
-                self.Z_W = 1.2 - (HB - 130) / 1700
-        else:
-            self.Z_W = 1.
+        self.Z_W = Z_W(self.werkstoff, self.R_z)
         _print("Z_W =", self.Z_W)
 
-        # Tabelle 4.2
-        def Z_Xdyn(idx : int):
-            wsart = self.werkstoff[idx].art
-            if wsart in (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.vergüteterStahl):
-                return 1.
-            elif wsart in (din3990_5.Werkstoff.Art.einsatzgehärteterStahl, ):
-                if self.geometrie.m_n <= 10:
-                    return 1.
-                elif self.geometrie.m_n < 30:
-                    return 1.05 - 0.005  * self.geometrie.m_n
-                else:
-                    return 0.9
-            elif wsart in (din3990_5.Werkstoff.Art.nitrierterStahl, din3990_5.Werkstoff.Art.nitrokarburierterStahl):
-                if self.geometrie.m_n <= 7.5:
-                    return 1.
-                elif self.geometrie.m_n < 30:
-                    return 1.08 - 0.011  * self.geometrie.m_n
-                else:
-                    return 0.75
-            raise NotImplementedError
         self.Z_Xstat = 1., 1.
-        self.Z_Xdyn = Z_Xdyn(Ritzel), Z_Xdyn(Rad)
+        self.Z_Xdyn = Z_Xdyn(self.geometrie.m_n, self.werkstoff[Ritzel]), Z_Xdyn(self.geometrie.m_n, self.werkstoff[Rad])
         _print("Z_Xstat =", self.Z_Xstat)
         _print("Z_Xdyn =", self.Z_Xdyn)
 
-        # Tabelle 4.3
-        def Z_NT(idx : int):
-            wsart = self.werkstoff[idx].art
-            if wsart in (din3990_5.Werkstoff.Art.Baustahl, ):
-                return 1.6, 1.0
-            elif wsart in (din3990_5.Werkstoff.Art.vergüteterStahl, din3990_5.Werkstoff.Art.einsatzgehärteterStahl):
-                return 1.6, 1.0
-            elif wsart in (din3990_5.Werkstoff.Art.nitrierterStahl, ):
-                return 1.3, 1.0
-            elif wsart in (din3990_5.Werkstoff.Art.nitrokarburierterStahl, ):
-                return 1.1, 1.0
-            raise NotImplementedError
-        Z_NTritzel = Z_NT(Ritzel)
-        Z_NTrad = Z_NT(Rad)
+        Z_NTritzel = Z_NT(self.werkstoff[Ritzel])
+        Z_NTrad = Z_NT(self.werkstoff[Rad])
         self.Z_NTstat = Z_NTritzel[0], Z_NTrad[0]
         self.Z_NTdyn = Z_NTritzel[1], Z_NTrad[1]
         _print("Z_NTstat =", self.Z_NTstat)
         _print("Z_NTdyn =", self.Z_NTdyn)
 
-        # Glg 4.03
-        def sigma_HGstat(idx):
-            return self.werkstoff[idx].sigma_Hlim * self.Z_NTstat[idx] * self.Z_LVRstat * self.Z_W * self.Z_Xstat[idx]
-        def sigma_HGdyn(idx) -> float:
-            return self.werkstoff[idx].sigma_Hlim * self.Z_NTdyn[idx] * self.Z_LVRdyn * self.Z_W * self.Z_Xdyn[idx]
-        self.sigma_HGstat = sigma_HGstat(Ritzel), sigma_HGstat(Rad)
-        self.sigma_HGdyn = sigma_HGdyn(Ritzel), sigma_HGdyn(Rad)
+        self.sigma_HGstat = tuple(sigma_HGstat(self.werkstoff[idx], self.Z_NTstat[idx], self.Z_LVRstat, self.Z_W, self.Z_Xstat[idx]) for idx in _indices)
+        self.sigma_HGdyn = tuple(sigma_HGdyn(sigma_HGstat[idx], self.werkstoff[idx], self.Z_NTdyn[idx], self.Z_LVRdyn, self.Z_W[idx], self.Z_Xdyn[idx], self.N_L, self.gewisseGrübchenbildung)
+                                 for idx in _indices)
         _print("σ_HGstat =", self.sigma_HGstat)
         _print("σ_HGdyn =", self.sigma_HGdyn)
 

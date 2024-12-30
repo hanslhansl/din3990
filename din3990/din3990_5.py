@@ -5,6 +5,7 @@ from enum import Enum
 @dataclass
 class Werkstoff:
     class Art(Enum):
+        # 17 total
         Baustahl = 0
         Vergütungsstahl = 1
         Grauguß = 2
