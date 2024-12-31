@@ -8,6 +8,8 @@ Siehe https://github.com/hanslhansl/din3990.
 
 """
 Funktionen die Werkstoffart benötigen:
+Z_E
+Z_W
 Z_Xdyn
 Z_NT
 sigma_HGdyn

@@ -202,4 +202,3 @@ def test_1():
     assert abs(3.923835519570148 - getriebe.S_Fstat[1]) < 0.0001
     assert abs(1.8787026617886324 - getriebe.S_Fdyn[1]) < 0.0001
 
-test_1()
