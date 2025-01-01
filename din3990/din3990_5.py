@@ -1,28 +1,29 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import IntEnum, auto
 
 
 @dataclass
 class Werkstoff:
-    class Art(Enum):
-        # 17 total
-        Baustahl = 0
-        Vergütungsstahl = 1
-        Grauguß = 2
-        PerlitischesGußeisenMitKugelgraphit = 3
-        BainitischesGußeisenMitKugelgraphit = 4
-        FerritischesGußeisenMitKugelgraphit = 5
-        SchwarzerTemperguß = 6
-        Einsatzstahl = 7
-        InduktionsgehärteterStahl = 8
-        FlammgehärteterStahl = 9
-        InduktionsgehärtetesGußeisen = 10
-        FlammgehärtetesGußeisen = 11
-        Nitrierstahl = 12
-        NitrierterVergütungsstahl = 13
-        NitrierterEinsatzstahl = 14
-        NitrokarburierterVergütungsstahl = 15
-        NitrokarburierterEinsatzstahl = 16
+    class Art(IntEnum):
+        # 18 total
+        Baustahl = auto()
+        Stahlguß = auto()
+        Vergütungsstahl = auto()
+        Grauguß = auto()
+        PerlitischesGußeisenMitKugelgraphit = auto()
+        BainitischesGußeisenMitKugelgraphit = auto()
+        FerritischesGußeisenMitKugelgraphit = auto()
+        SchwarzerTemperguß = auto()
+        Einsatzstahl = auto()
+        InduktionsgehärteterStahl = auto()
+        FlammgehärteterStahl = auto()
+        InduktionsgehärtetesGußeisen = auto()
+        FlammgehärtetesGußeisen = auto()
+        Nitrierstahl = auto()
+        NitrierterVergütungsstahl = auto()
+        NitrierterEinsatzstahl = auto()
+        NitrokarburierterVergütungsstahl = auto()
+        NitrokarburierterEinsatzstahl = auto()
 
     art : Art
     sigma_Hlim : float

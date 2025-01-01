@@ -13,8 +13,8 @@ Z_W
 Z_Xdyn
 Z_NT
 sigma_HGdyn
-
-
+Y_deltarelTstat
+sigma_FGdyn
 
 """
 

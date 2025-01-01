@@ -102,6 +102,7 @@ class _WerkstoffKategorie:
     GußeisenMitLamellengraphit = Art.Grauguß,
 
 def epsilon_alphan(epsilon_alpha : float, beta_b : float):
+    """Bild 5.8"""
     return epsilon_alpha / m.cos(m.radians(beta_b))**2
 
 def v(n : float, d : float):
@@ -656,12 +657,12 @@ def sigma_HGdyn(sigma_HGstat : float, werkstoff : din3990_5.Werkstoff, Z_NTdyn :
         if gewisseGrübchenbildung:
             if N_L <= 6 * 10**5:
                 return sigma_HGstat
-            elif 6 * 10**5 < N_L <= 10**7:
+            elif N_L <= 10**7:
                 # Glg 4.05
                 exp = 0.3705 * m.log10(sigma_HGstat / sigma_HGdauer)
                 # Glg 4.04
                 return sigma_HGdauer * m.pow(3 * 10**8 / N_L, exp)
-            elif 10**7 < N_L <= 10**9:
+            elif N_L <= 10**9:
                 # Glg 4.07
                 exp = 0.2791 * m.log10(sigma_HGstat / sigma_HGdauer)
                 # Glg 4.06
@@ -671,7 +672,7 @@ def sigma_HGdyn(sigma_HGstat : float, werkstoff : din3990_5.Werkstoff, Z_NTdyn :
         else:
             if N_L <= 10**5:
                 return sigma_HGstat
-            elif 10**5 < N_L <= 5 * 10**7:
+            elif N_L <= 5 * 10**7:
                 # Glg 4.05
                 exp = 0.3705 * m.log10(sigma_HGstat / sigma_HGdauer)
                 # Glg 4.08
@@ -682,7 +683,7 @@ def sigma_HGdyn(sigma_HGstat : float, werkstoff : din3990_5.Werkstoff, Z_NTdyn :
                            din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.Grauguß):   # 5
         if N_L <= 10**5:
             return sigma_HGstat
-        elif 10**5 < N_L <= 2 * 10**6:
+        elif N_L <= 2 * 10**6:
             # Glg 4.10
             exp = 0.7686 * m.log10(sigma_HGstat / sigma_HGdauer)
             # Glg 4.09
@@ -719,10 +720,155 @@ def z_n(z : int, beta : float, beta_b : float):
     """Glg D.1.01"""
     return z / m.cos(m.radians(beta_b))**2 / m.cos(m.radians(beta))
 
-
 def Y_epsilon(epsilon_alpha : float, beta_b : float):
     """Abschnitt 5.3"""
     return 0.25 + 0.75 / epsilon_alpha * m.cos(m.radians(beta_b))**2
+
+def Y_beta(beta : float, epsilon_beta : float):
+    """Glg 5.10"""
+    return 1 - min(epsilon_beta, 1.) * min(beta, 30) / 120
+
+def Y_deltarelTstat(werkstoff : din3990_5.Werkstoff, Y_S : float):
+    """Abschnitt 5.6"""
+    if werkstoff.art in (din3990_5.Werkstoff.Art.Baustahl, ):
+        raise NotImplementedError
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Vergütungsstahl, din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit):
+        raise NotImplementedError
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Einsatzstahl, din3990_5.Werkstoff.Art.NitrierterEinsatzstahl,
+                           din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl):
+        return 0.44 * Y_S + 0.12
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Nitrierstahl, din3990_5.Werkstoff.Art.NitrierterVergütungsstahl,
+                           din3990_5.Werkstoff.Art.NitrokarburierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrokarburierterEinsatzstahl):
+        return 0.20 * Y_S + 0.60
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Stahlguß, ):
+        return 0.07 * Y_S + 0.86
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Grauguß, din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit):
+        return 1.
+    raise NotImplementedError
+def Y_deltarelTdyn(q_s : float):
+    """Glg 5.11, 5.12"""
+    if q_s >= 1.5:
+        return 1.
+    else:
+        return 0.95
+    
+def Y_RrelTstat():
+    """Glg 5.18"""
+    return 1.
+def Y_RrelTdyn(R_z : float):
+    """Glg 5.18 & 5.19"""
+    if R_z <= 16:
+        return 1.
+    else:
+        return 0.9
+
+def Y_Xstat():
+    """Tabelle 5.1"""
+    return 1.
+def Y_Xdyn(werkstoff : din3990_5.Werkstoff, m_n : float):
+    """Tabelle 5.1"""
+    if werkstoff.art in (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.Vergütungsstahl,
+                         din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.SchwarzerTemperguß):
+        if m_n <= 5:
+            return 1.
+        elif m_n < 30:
+            return 1.03 - 0.006  * m_n
+        else:
+            return 0.85
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Einsatzstahl, din3990_5.Werkstoff.Art.NitrierterEinsatzstahl, din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl,
+                           din3990_5.Werkstoff.Art.Nitrierstahl, din3990_5.Werkstoff.Art.NitrierterVergütungsstahl,
+                           din3990_5.Werkstoff.Art.NitrokarburierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrokarburierterEinsatzstahl):
+        if m_n <= 5:
+            return 1.
+        elif m_n < 25:
+            return 1.05 - 0.01  * m_n
+        else:
+            return 0.8
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Grauguß, din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit):
+        if m_n <= 5:
+            return 1.
+        elif m_n < 25:
+            return 1.075 - 0.015  * m_n
+        else:
+            return 0.85
+    raise NotImplementedError
+
+def Y_S(Y_Sa : float, s_Fn : float, h_Fa : float, epsilon_alphan : float):
+    """Bild 5.8"""
+    assert 1 <= s_Fn / h_Fa <= 1.2
+    return Y_Sa * (0.6 + 0.4 * epsilon_alphan)
+
+def Y_NT(werkstoff : din3990_5.Werkstoff):
+    """Tabelle 5.2"""
+    if werkstoff.art in (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.Vergütungsstahl,
+                         din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.SchwarzerTemperguß):
+        return 2.5, 1.0
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Einsatzstahl, din3990_5.Werkstoff.Art.NitrierterEinsatzstahl,
+                           din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl):
+        return 2.5, 1.0
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Nitrierstahl, din3990_5.Werkstoff.Art.NitrierterVergütungsstahl,
+                           din3990_5.Werkstoff.Art.Grauguß, din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit):
+        return 1.6, 1.0
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.NitrokarburierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrokarburierterEinsatzstahl):
+        return 1.1, 1.0
+    raise NotImplementedError
+
+def sigma_FGstat(werkstoff : din3990_5.Werkstoff, Y_NTstat : float, Y_deltarelTstat : float, Y_RrelTstat : float, Y_Xstat : float):
+    """Glg 5.03"""
+    return werkstoff.sigma_FE * Y_NTstat * Y_deltarelTstat * Y_RrelTstat * Y_Xstat
+def sigma_FGdyn(sigma_FGstat : float, werkstoff : din3990_5.Werkstoff, Y_NTdyn : float, Y_deltarelTdyn : float, Y_RrelTdyn : float, Y_Xdyn : float, N_L : float):
+    """Glg 5.03 und Abschnitt 5.1.3b"""
+    sigma_FGdauer = werkstoff.sigma_FE * Y_NTdyn * Y_deltarelTdyn * Y_RrelTdyn * Y_Xdyn
+
+    if werkstoff.art in (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.Vergütungsstahl,
+                         din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit,
+                         din3990_5.Werkstoff.Art.SchwarzerTemperguß):
+
+        if N_L <= 10**4:
+            return sigma_FGstat
+        elif N_L <= 3 * 10**6:
+            # Glg 5.05
+            exp = 0.4037 * m.log10(sigma_FGstat / sigma_FGdauer)
+            # Glg 5.04
+            return sigma_FGdauer * m.pow(3 * 10**6 / N_L, exp)
+        else:
+            return sigma_FGdauer
+
+
+    elif werkstoff.art in (din3990_5.Werkstoff.Art.Einsatzstahl, din3990_5.Werkstoff.Art.NitrierterEinsatzstahl,
+                           din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl,
+                           din3990_5.Werkstoff.Art.NitrierterVergütungsstahl, din3990_5.Werkstoff.Art.Nitrierstahl,
+                           din3990_5.Werkstoff.Art.NitrokarburierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrokarburierterEinsatzstahl,
+                           din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.Grauguß):
+        if N_L <= 10**3:
+            return sigma_FGstat
+        elif N_L <= 3 * 10**6:
+            # Glg 5.06
+            exp = 0.2876 * m.log10(sigma_FGstat / sigma_FGdauer)
+            # Glg 5.04
+            return sigma_FGdauer * m.pow(3 * 10**6 / N_L, exp)
+        else:
+            return sigma_FGdauer
+
+    raise NotImplementedError
+
+def sigma_F0(F_t : float, b : float, m_n : float, Y_FS : float, Y_epsilon : float, Y_beta : float):
+    """Glg 5.02"""
+    return F_t / b / m_n * Y_FS * Y_epsilon * Y_beta
+
+def sigma_Fstat(sigma_F0 : float, K_S : float, K_V : float, K_Falpha : float, K_Fbeta : float):
+    """Glg 5.01"""
+    return sigma_F0 * K_S * K_V * K_Fbeta * K_Falpha
+def sigma_Fdyn(sigma_F0 : float, K_A : float, K_V : float, K_Falpha : float, K_Fbeta : float):
+    """Glg 5.01"""
+    return sigma_F0 * K_A * K_V * K_Fbeta * K_Falpha
+
+def S_Fstat(sigma_FGstat : float, sigma_Fstat : float):
+    """Glg 5.07"""
+    return sigma_FGstat / sigma_Fstat
+def S_Fdyn(sigma_FGdyn : float, sigma_Fdyn : float):
+    """Glg 5.07"""
+    return sigma_FGdyn / sigma_Fdyn
 
 class DIN_21771:
     def __init__(self,
@@ -1131,7 +1277,7 @@ class DIN_3990_11:
             # Glg D.5.04
             def theta(idx):
                 theta = m.degrees(m.pi / 6)
-                for i in range(5):
+                for _ in range(5):
                     theta = m.degrees(2 * self.G[idx] / self.z_n[idx] * m.tan(m.radians(theta)) - self.H[idx])
                 return theta
             self.theta = theta(Ritzel), theta(Rad)
@@ -1226,128 +1372,53 @@ class DIN_3990_11:
         self.Y_FS = Y_FS(Ritzel), Y_FS(Rad)
         _print("Y_FS =", self.Y_FS)
 
-        # Glg 5.10
-        self.Y_beta = 1 - min(self.geometrie.epsilon_beta, 1.) * min(self.geometrie.beta, 30) / 120
+        self.Y_beta = Y_beta(self.geometrie.beta, self.geometrie.epsilon_beta)
         _print("Y_β =", self.Y_beta)
  
-        # Tabelle 5.8
-        epsilon_alphan = epsilon_alphan(self.geometrie.epsilon_alpha, self.geometrie.beta_b)
-        _print("ε_αn =", epsilon_alphan)
-        def Y_S(idx):
-            assert 1 <= self.s_Fn[idx] / self.h_Fa[idx] <= 1.2
-            return self.Y_Sa[idx] * (0.6 + 0.4 * epsilon_alphan)
-        self.Y_S = Y_S(Ritzel), Y_S(Rad)
+        _epsilon_alphan = epsilon_alphan(self.geometrie.epsilon_alpha, self.geometrie.beta_b)
+        _print("ε_αn =", _epsilon_alphan)
+
+        self.Y_S = tuple(Y_S(self.Y_Sa[idx], self.s_Fn[idx], self.h_Fa[idx], _epsilon_alphan) for idx in _indices)
         _print("Y_S =", self.Y_S)
 
-        # Abschnitt 5.6
-        def Y_deltarelTstat(idx : int):
-            wsart = self.werkstoff[idx].art
-            if wsart in (din3990_5.Werkstoff.Art.Baustahl, ):
-                raise NotImplementedError
-            elif wsart in (din3990_5.Werkstoff.Art.vergüteterStahl, ):
-                raise NotImplementedError
-            elif wsart in (din3990_5.Werkstoff.Art.einsatzgehärteterStahl, ):
-                return 0.44 * self.Y_S[idx] + 0.12
-            elif wsart in (din3990_5.Werkstoff.Art.nitrierterStahl, din3990_5.Werkstoff.Art.nitrokarburierterStahl ):
-                return 0.20 * self.Y_S[idx] + 0.60
-            raise NotImplementedError
-        # Glg 5.11, 5.12
-        def Y_deltarelTdyn(idx):
-            if self.q_s[idx] >= 1.5:
-                return 1.
-            else:
-                return 0.95
-        self.Y_deltarelTstat = Y_deltarelTstat(Ritzel), Y_deltarelTstat(Rad)
-        self.Y_deltarelTdyn = Y_deltarelTdyn(Ritzel), Y_deltarelTdyn(Rad)
+        self.Y_deltarelTstat = tuple(Y_deltarelTstat(self.werkstoff[idx], self.Y_S[idx]) for idx in _indices)
+        self.Y_deltarelTdyn = tuple(Y_deltarelTdyn(self.q_s[idx]) for idx in _indices)
         _print("Y_δrelTstat =", self.Y_deltarelTstat)
         _print("Y_δrelTdyn =", self.Y_deltarelTdyn)
 
-        # Abschnitt 5.7
-        self.Y_RrelTstat = 1.
-        def Y_RrelTdyn(idx):
-            if self.R_z[idx] <= 16:
-                return 1.
-            else:
-                return 0.9
-        self.Y_RrelTdyn = Y_RrelTdyn(Ritzel), Y_RrelTdyn(Rad)
+        self.Y_RrelTstat = tuple(Y_RrelTstat() for _ in _indices)
+        self.Y_RrelTdyn = tuple(Y_RrelTdyn(self.R_z[idx]) for idx in _indices)
         _print("Y_RrelTstat =", self.Y_RrelTstat)
         _print("Y_RrelTdyn =", self.Y_RrelTdyn)
 
-        # Tabelle 5.1
-        def Y_Xdyn(idx : int):
-            wsart = self.werkstoff[idx].art
-            if wsart in (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.vergüteterStahl):
-                if self.geometrie.m_n <= 5:
-                    return 1.
-                elif self.geometrie.m_n < 30:
-                    return 1.03 - 0.006  * self.geometrie.m_n
-                else:
-                    return 0.85
-            elif wsart in (din3990_5.Werkstoff.Art.einsatzgehärteterStahl, din3990_5.Werkstoff.Art.nitrierterStahl, din3990_5.Werkstoff.Art.nitrokarburierterStahl):
-                if self.geometrie.m_n <= 5:
-                    return 1.
-                elif self.geometrie.m_n < 25:
-                    return 1.05 - 0.01  * self.geometrie.m_n
-                else:
-                    return 0.8
-            raise NotImplementedError
-        self.Y_Xstat = 1., 1.
-        self.Y_Xdyn = Y_Xdyn(Ritzel), Y_Xdyn(Rad)
+        self.Y_Xstat = tuple(Y_Xstat() for _ in _indices)
+        self.Y_Xdyn = tuple(Y_Xdyn(self.werkstoff[idx], self.geometrie.m_n) for idx in _indices)
         _print("Y_Xstat =", self.Y_Xstat)
         _print("Y_Xdyn =", self.Y_Xdyn)
 
-        # Tabelle 5.2
-        def Y_NT(idx : int):
-            wsart = self.werkstoff[idx].art
-            if wsart in (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.vergüteterStahl):
-                return 2.5, 1.0
-            elif wsart in (din3990_5.Werkstoff.Art.einsatzgehärteterStahl, ):
-                return 2.5, 1.0
-            elif wsart in (din3990_5.Werkstoff.Art.nitrierterStahl, ):
-                return 1.6, 1.0
-            elif wsart in (din3990_5.Werkstoff.Art.nitrokarburierterStahl, ):
-                return 1.1, 1.0
-            raise NotImplementedError
-        Y_NTritzel = Y_NT(Ritzel)
-        Y_NTrad = Y_NT(Rad)
+        Y_NTritzel = Y_NT(self.werkstoff[Ritzel])
+        Y_NTrad = Y_NT(self.werkstoff[Rad])
         self.Y_NTstat = Y_NTritzel[0], Y_NTrad[0]
         self.Y_NTdyn = Y_NTritzel[1], Y_NTrad[1]
         _print("Y_NTstat =", self.Y_NTstat)
         _print("Y_NTdyn =", self.Y_NTdyn)
 
-        # Glg 5.03
-        def sigma_FGstat(idx):
-            return self.werkstoff[idx].sigma_FE * self.Y_NTstat[idx] * self.Y_deltarelTstat[idx] * self.Y_RrelTstat * self.Y_Xstat[idx]
-        def sigma_FGdyn(idx):
-            return self.werkstoff[idx].sigma_FE * self.Y_NTdyn[idx] * self.Y_deltarelTdyn[idx] * self.Y_RrelTdyn[idx] * self.Y_Xdyn[idx]
-        self.sigma_FGstat = sigma_FGstat(Ritzel), sigma_FGstat(Rad)
-        self.sigma_FGdyn = sigma_FGdyn(Ritzel), sigma_FGdyn(Rad)
+        self.sigma_FGstat = tuple(sigma_FGstat(self.werkstoff[idx], self.Y_NTstat[idx], self.Y_deltarelTstat[idx], self.Y_RrelTstat[idx], self.Y_Xstat[idx]) for idx in _indices)
+        self.sigma_FGdyn = tuple(sigma_FGdyn(self.sigma_FGstat[idx], self.werkstoff[idx], self.Y_NTdyn[idx], self.Y_deltarelTdyn[idx], self.Y_RrelTdyn[idx], self.Y_Xdyn[idx], self.N_L)
+                                 for idx in _indices)
         _print("σ_FGstat =", self.sigma_FGstat)
         _print("σ_FGdyn =", self.sigma_FGdyn)
 
-        # Glg 5.02
-        def sigma_F0(idx):
-            return self.F_t / self.geometrie.b / self.geometrie.m_n * self.Y_FS[idx] * self.Y_epsilon * self.Y_beta
-        self.sigma_F0 = sigma_F0(Ritzel), sigma_F0(Rad)
+        self.sigma_F0 = tuple(sigma_F0(self.F_t, self.geometrie.b, self.geometrie.m_n, self.Y_FS[idx], self.Y_epsilon, self.Y_beta) for idx in _indices)
         _print("σ_F0 =", self.sigma_F0)
 
-        # Glg 5.01
-        def sigma_Fstat(idx):
-            return self.sigma_F0[idx] * self.K_S * self.K_V[idx] * self.K_Fbeta[idx] * self.K_Falpha[idx]
-        def sigma_Fdyn(idx):
-            return self.sigma_F0[idx] * self.K_A * self.K_V[idx] * self.K_Fbeta[idx] * self.K_Falpha[idx]
-        self.sigma_Fstat = sigma_Fstat(Ritzel), sigma_Fstat(Rad)
-        self.sigma_Fdyn = sigma_Fdyn(Ritzel), sigma_Fdyn(Rad)
+        self.sigma_Fstat = tuple(sigma_Fstat(self.sigma_F0[idx], self.K_S, self.K_V[idx], self.K_Falpha[idx], self.K_Fbeta[idx]) for idx in _indices)
+        self.sigma_Fdyn = tuple(sigma_Fdyn(self.sigma_F0[idx], self.K_A, self.K_V[idx], self.K_Falpha[idx], self.K_Fbeta[idx]) for idx in _indices)
         _print("σ_Fstat =", self.sigma_Fstat)
         _print("σ_Fdyn =", self.sigma_Fdyn)
 
-        # Glg 5.07
-        def S_Fstat(idx):
-            return self.sigma_FGstat[idx] / self.sigma_Fstat[idx]
-        def S_Fdyn(idx):
-            return self.sigma_FGdyn[idx] / self.sigma_Fdyn[idx]
-        self.S_Fstat = S_Fstat(Ritzel), S_Fstat(Rad)
-        self.S_Fdyn = S_Fdyn(Ritzel), S_Fdyn(Rad)
+        self.S_Fstat = tuple(S_Fstat(self.sigma_FGstat[idx], self.sigma_Fstat[idx]) for idx in _indices)
+        self.S_Fdyn = tuple(S_Fdyn(self.sigma_FGdyn[idx], self.sigma_Fdyn[idx]) for idx in _indices)
 
         check_value(Ritzel, self.S_Fstat, S_Fstatmin, "S_Fstat", "statische Zahnbruchsicherheit")
         check_value(Ritzel, self.S_Fdyn, S_Fdynmin, "S_Fdyn", "dynamische Zahnbruchsicherheit")
