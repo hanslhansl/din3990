@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from re import L
 from typing import Optional
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, auto
 import math as m
 from scipy import optimize
 from . import din3990_5
@@ -59,23 +59,23 @@ class Tabelle3_2(float, Enum):
     mitSinnvollerEndrücknahme = 0.016
 
 class Bild3_1(IntEnum):
-    a = 0
-    b = 1
-    c = 2
-    d = 3
-    e = 4
-    f = 5
+    a = auto()
+    b = auto()
+    c = auto()
+    d = auto()
+    e = auto()
+    f = auto()
 
 class Bild3_2(IntEnum):
-    a = 0
-    b = 1
-    c = 2
-    d = 3
-    e = 4
+    a = auto()
+    b = auto()
+    c = auto()
+    d = auto()
+    e = auto()
 
 class Fertigungsverfahren(IntEnum):
-    wälzgefrästWälzgestoßenWälzgehobelt = 0
-    geläpptGeschliffenGeschabt = 1
+    wälzgefrästWälzgestoßenWälzgehobelt = auto()
+    geläpptGeschliffenGeschabt = auto()
 
 class _WerkstoffKategorie:
     Art = din3990_5.Werkstoff.Art
@@ -870,6 +870,128 @@ def S_Fdyn(sigma_FGdyn : float, sigma_Fdyn : float):
     """Glg 5.07"""
     return sigma_FGdyn / sigma_Fdyn
 
+def E(m_n : float, h_fP : float, rho_fP : float, alpha_n : float, s_pr : float):
+    """Glg D.5.01"""
+    return (m.pi / 4 * m_n - h_fP * m.tan(m.radians(alpha_n)) + s_pr / m.cos(m.radians(alpha_n))
+                    - (1 - m.sin(m.radians(alpha_n))) * rho_fP / m.cos(m.radians(alpha_n)))
+def G(x : float, m_n : float, h_fP : float, rho_fP : float):
+    """Glg D.5.02"""
+    return rho_fP / m_n - h_fP / m_n + x
+def H(m_n : float, z_n : float, E : float):
+    """Glg D.5.03"""
+    return 2 / z_n * (m.pi / 2 - E / m_n) - m.pi / 3
+def theta(z_n : float, G : float, H : float):
+    """Glg D.5.04"""
+    theta = m.degrees(m.pi / 6)
+    for _ in range(5):
+        theta = m.degrees(2 * G / z_n * m.tan(m.radians(theta)) - H)
+    return theta
+def s_Fn(m_n : float, h_fP : float, rho_fP : float, alpha_n : float, s_pr : float, z_n : float, G : float, theta : float, innenverzahnt : bool):
+    """Glg D.5.05"""
+    if not innenverzahnt:
+        return m_n * (z_n * m.sin(m.pi / 3 - m.radians(theta)) + m.sqrt(3) * (G / m.cos(m.radians(theta)) - rho_fP / m_n))
+    else:
+        return m_n * 2 * (m.pi / 4 + m.tan(m.radians(alpha_n)) * (h_fP - rho_fP) / m_n + (rho_fP - s_pr) / m_n / m.cos(m.radians(alpha_n)) - rho_fP / m_n * m.cos(m.pi / 6))
+def d_n(m_n : float, z_n : float):
+    """Glg D.5.06"""
+    return m_n * z_n
+def d_bn(alpha_n : float, d_n : float):
+    """Glg D.5.07"""
+    return d_n * m.cos(m.radians(alpha_n))
+def d_an(d : float, d_a : float, d_n : float):
+    """Glg D.5.08"""
+    return d_n + d_a - d
+def d_fn(d : float, d_f : float, d_n : float):
+    return d_n + d_f - d
+def alpha_an(d_bn : float, d_an : float):
+    """Glg D.5.09"""
+    return m.degrees(m.acos(d_bn / d_an))
+def y_a(x : float, alpha_n : float, z_n : float, alpha_an : float):
+    """Glg D.5.10"""
+    return 1 / z_n * (m.pi / 2 + 2 * x * m.tan(m.radians(alpha_n))) + involute(alpha_n) - involute(alpha_an)
+def alpha_Fan(x : float, alpha_n : float, z_n : float, d_n : float, d_an : float, innenverzahnt : bool, _print = print):
+    """Glg D.5.11"""
+    if not innenverzahnt:
+        _d_bn = d_bn(alpha_n, d_n)
+        _print("d_bn =", _d_bn)
+
+        _alpha_an = alpha_an(_d_bn, d_an)
+        _print("α_an =", _alpha_an)
+
+        _y_a = y_a(x, alpha_n, z_n, _alpha_an)
+        _print("y_a =", _y_a)
+
+        return _alpha_an - m.degrees(_y_a)
+    else:
+        return alpha_n
+def h_Fa(m_n : float, h_fP : float, rho_fP : float, alpha_n : float, z_n : float, G : float, theta : float, d_an : float, d_fn : float, alpha_Fan : float, innenverzahnt : bool):
+    """Glg D.5.12 & D.5.15"""
+    if not innenverzahnt:
+        return m_n * (0.5 * z_n * (m.cos(m.radians(alpha_n)) / m.cos(m.radians(alpha_Fan)) - m.cos(m.pi / 3 - m.radians(theta))) + 0.5 * (rho_fP / m_n - G / m.cos(m.radians(theta))))
+    else:
+        return m_n * ((d_an - d_fn) / 2 / m_n - (m.pi / 4 + (h_fP / m_n - (d_an - d_fn) / 2 / m_n) * m.tan(m.radians(alpha_n))) * m.tan(m.radians(alpha_n)) - rho_fP / m_n * (1 - m.sin(m.pi / 6)))
+def rho_F(m_n : float, rho_fP : float, z_n : float, G : float, theta : float, innenverzahnt : bool):
+    """Glg D.5.13 & D.5.16"""
+    if not innenverzahnt:
+        return rho_fP + m_n * 2 * G**2 / m.cos(m.radians(theta)) / (z_n * m.cos(m.radians(theta))**2 - 2 * G)
+    else:
+        return rho_fP / 2
+def AbschnittD_5(z_n : float, x : float, m_n : float, d : float, d_a : float, d_f : float, h_fP : float, rho_fP : float, s_pr : float, alpha_n : float, innenverzahnt : bool, _print = print):
+    """
+    s_Fn, h_Fa, rho_F, alpha_Fan
+    Abschnitt D.5a und b
+    """
+    _print("innenverzahnt =", innenverzahnt)
+    _E = E(m_n, h_fP, rho_fP, alpha_n, s_pr)
+    _print("E =", _E)
+
+    _G = G(x, m_n, h_fP, rho_fP)
+    _print("G =", _G)
+
+    _H = H(m_n, z_n, _E)
+    _print("H =", _H)
+
+    _theta = theta(z_n, _G, _H)
+    _print("ϑ =", _theta)
+
+    _d_n = d_n(m_n, z_n)
+    _print("d_n =", _d_n)
+
+    _d_an = d_an(d, d_a, _d_n)
+    _print("d_an =", _d_an)
+
+    _d_fn = d_fn(d, d_f, _d_n)
+    _print("d_fn =", _d_fn)
+
+    _alpha_Fan = alpha_Fan(x, alpha_n, z_n, _d_n, _d_an, innenverzahnt, _print)
+
+    _s_Fn = s_Fn(m_n, h_fP, rho_fP, alpha_n, s_pr, z_n, _G, _theta, innenverzahnt)
+
+    _h_Fa = h_Fa(m_n, h_fP, rho_fP, alpha_n, z_n, _G, _theta, _d_an, _d_fn, _alpha_Fan, innenverzahnt)
+
+    _rho_F = rho_F(m_n, rho_fP, z_n, _G, _theta, innenverzahnt)
+
+    return _s_Fn, _h_Fa, _rho_F, _alpha_Fan
+
+def Y_Fa(m_n : float, alpha_n : float, s_Fn : float, h_Fa : float, alpha_Fan : float):
+    """D.3.01"""
+    return (6 * h_Fa / m_n * m.cos(m.radians(alpha_Fan))) / ((s_Fn / m_n)**2 * m.cos(m.radians(alpha_n)))
+
+def L_a(s_Fn : float, h_Fa : float):
+    """Glg D.4.02"""
+    return s_Fn / h_Fa
+def q_s(s_Fn : float, rho_F : float):
+    """Glg D.4.03"""
+    return s_Fn / 2 / rho_F
+def Y_Sa(q_s : float, L_a : float):
+    """Glg D.4.01"""
+    assert 1 <= q_s < 8
+    return (1.2 + 0.13 * L_a) * m.pow(q_s, 1 / (1.21 + 2.3 / L_a))
+
+def Y_FS(Y_Sa : float, Y_Fa : float):
+    """Glg 5.08"""
+    return Y_Sa * Y_Fa
+
 class DIN_21771:
     def __init__(self,
             m_n : float,
@@ -1256,120 +1378,27 @@ class DIN_3990_11:
         self.z_n = tuple(z_n(self.geometrie.z[idx], self.geometrie.beta, self.geometrie.beta_b) for idx in _indices)
         _print("z_n =", self.z_n)
 
-        if not self.innenverzahnt:
-            # Glg D.5.01
-            self.E = (m.pi / 4 * self.geometrie.m_n - self.geometrie.h_fP * m.tan(m.radians(self.geometrie.alpha_n)) + self.s_pr / m.cos(m.radians(self.geometrie.alpha_n))
-                      - (1 - m.sin(m.radians(self.geometrie.alpha_n))) * self.geometrie.rho_fP / m.cos(m.radians(self.geometrie.alpha_n))) 
-            _print("E =", self.E)
+        _AbschnittD_5 = tuple(AbschnittD_5(self.z_n[idx], self.geometrie.x[idx], self.geometrie.m_n, self.geometrie.d[idx], self.geometrie.d_a[idx], self.geometrie.d_f[idx], self.geometrie.h_fP,
+                                           self.geometrie.rho_fP, self.s_pr, self.geometrie.alpha_n, self.innenverzahnt if idx == Rad else False, _print) for idx in _indices)
+        self.s_Fn, self.h_Fa, self.rho_F, self.alpha_Fan  = zip(_AbschnittD_5[0], _AbschnittD_5[1])
+        _print("s_Fn =", self.s_Fn)
+        _print("h_Fa =", self.h_Fa)
+        _print("ρ_F =", self.rho_F)
+        _print("α_Fan =", self.alpha_Fan)
 
-            # Glg D.5.02
-            def G(idx):
-                return self.geometrie.rho_fP / self.geometrie.m_n - self.geometrie.h_fP / self.geometrie.m_n + self.geometrie.x[idx]
-            self.G = G(Ritzel), G(Rad)
-            _print("G =", self.G)
-
-            # Glg D.5.03
-            def H(idx):
-                return 2 / self.z_n[idx] * (m.pi / 2 - self.E / self.geometrie.m_n) - m.pi / 3
-            self.H = H(Ritzel), H(Rad)
-            _print("H =", self.H)
-
-            # Glg D.5.04
-            def theta(idx):
-                theta = m.degrees(m.pi / 6)
-                for _ in range(5):
-                    theta = m.degrees(2 * self.G[idx] / self.z_n[idx] * m.tan(m.radians(theta)) - self.H[idx])
-                return theta
-            self.theta = theta(Ritzel), theta(Rad)
-            _print("ϑ =", self.theta)
-
-            # Glg D.5.05
-            def s_Fn(idx):
-                return self.geometrie.m_n * (self.z_n[idx] * m.sin(m.pi / 3 - m.radians(self.theta[idx])) + m.sqrt(3) * (self.G[idx] / m.cos(m.radians(self.theta[idx]))
-                                                                                                                         - self.geometrie.rho_fP / self.geometrie.m_n))
-            self.s_Fn = s_Fn(Ritzel), s_Fn(Rad)
-            _print("s_Fn =", self.s_Fn)
-
-            # Glg D.5.06
-            def d_n(idx):
-                return self.geometrie.m_n * self.z_n[idx]
-            self.d_n = d_n(Ritzel), d_n(Rad)
-            _print("d_n =", self.d_n)
-
-            # Glg D.5.07
-            def d_bn(idx):
-                return self.d_n[idx] * m.cos(m.radians(self.geometrie.alpha_n))
-            self.d_bn = d_bn(Ritzel), d_bn(Rad)
-            _print("d_bn =", self.d_bn)
-
-            # Glg D.5.08
-            def d_an(idx):
-                return self.d_n[idx] + self.geometrie.d_a[idx] - self.geometrie.d[idx]
-            self.d_an = d_an(Ritzel), d_an(Rad)
-            _print("d_an =", self.d_an)
-
-            # Glg D.5.09
-            def alpha_an(idx):
-                return m.degrees(m.acos(self.d_bn[idx] / self.d_an[idx]))
-            self.alpha_an = alpha_an(Ritzel), alpha_an(Rad)
-            _print("α_an =", self.alpha_an)
-
-            # Glg D.5.10
-            def y_a(idx):
-                return 1 / self.z_n[idx] * (m.pi / 2 + 2 * self.geometrie.x[idx] * m.tan(m.radians(self.geometrie.alpha_n))) + involute(self.geometrie.alpha_n) - involute(self.alpha_an[idx])
-            self.y_a = y_a(Ritzel), y_a(Rad)
-            _print("y_a =", self.y_a)
-
-            # Glg D.5.11
-            def alpha_Fan(idx):
-                return self.alpha_an[idx] - m.degrees(self.y_a[idx])
-            self.alpha_Fan = alpha_Fan(Ritzel), alpha_Fan(Rad)
-            _print("α_Fan =", self.alpha_Fan)
-
-            # Glg D.5.12
-            def h_Fa(idx):
-                return self.geometrie.m_n * (0.5 * self.z_n[idx] * (m.cos(m.radians(self.geometrie.alpha_n)) / m.cos(m.radians(self.alpha_Fan[idx])) - m.cos(m.pi / 3 - m.radians(self.theta[idx])))
-                                   + 0.5 * (self.geometrie.rho_fP / self.geometrie.m_n - self.G[idx] / m.cos(m.radians(self.theta[idx]))))
-            self.h_Fa = h_Fa(Ritzel), h_Fa(Rad)
-            _print("h_Fa =", self.h_Fa)
-
-            # Glg D.5.13
-            def rho_F(idx):
-                return self.geometrie.rho_fP + self.geometrie.m_n * 2 * self.G[idx]**2 / m.cos(m.radians(self.theta[idx])) / (self.z_n[idx] * m.cos(m.radians(self.theta[idx]))**2 - 2 * self.G[idx])
-            self.rho_F = rho_F(Ritzel), rho_F(Rad)
-            _print("ρ_F =", self.rho_F)
-        else:
-            raise NotImplementedError("Innenverzahnte Räder sind noch nicht implementiert")
-
-        # Glg D.3.01
-        def Y_Fa(idx):
-            return (6 * self.h_Fa[idx] / self.geometrie.m_n * m.cos(m.radians(self.alpha_Fan[idx]))) / ((self.s_Fn[idx] / self.geometrie.m_n)**2 * m.cos(m.radians(self.geometrie.alpha_n)))
-        self.Y_Fa = Y_Fa(Ritzel), Y_Fa(Rad)
+        self.Y_Fa = tuple(Y_Fa(self.geometrie.m_n, self.geometrie.alpha_n, self.s_Fn[idx], self.h_Fa[idx], self.alpha_Fan[idx]) for idx in _indices)
         _print("Y_Fa =", self.Y_Fa)
 
-        # Glg D.4.02
-        def L_a(idx):
-            return self.s_Fn[idx] / self.h_Fa[idx]
-        self.L_a = L_a(Ritzel), L_a(Rad)
+        self.L_a = tuple(L_a(self.s_Fn[idx], self.h_Fa[idx]) for idx in _indices)
         _print("L_a =", self.L_a)
 
-        # Glg D.4.03
-        def q_s(idx):
-            return self.s_Fn[idx] / 2 / self.rho_F[idx]
-        self.q_s = q_s(Ritzel), q_s(Rad)
+        self.q_s = tuple(q_s(self.s_Fn[idx], self.rho_F[idx]) for idx in _indices)
         _print("q_s =", self.q_s)
-        assert all(1 <= q_s < 8 for q_s in self.q_s)
 
-        # Glg D.4.01
-        def Y_Sa(idx):
-            return (1.2 + 0.13 * self.L_a[idx]) * m.pow(self.q_s[idx], 1 / (1.21 + 2.3 / self.L_a[idx]))
-        self.Y_Sa = Y_Sa(Ritzel), Y_Sa(Rad)
+        self.Y_Sa = tuple(Y_Sa(self.q_s[idx], self.L_a[idx]) for idx in _indices)
         _print("Y_Sa =", self.Y_Sa)
 
-        # Glg 5.08
-        def Y_FS(idx):
-            return self.Y_Sa[idx] * self.Y_Fa[idx]
-        self.Y_FS = Y_FS(Ritzel), Y_FS(Rad)
+        self.Y_FS = tuple(Y_FS(self.Y_Sa[idx], self.Y_Fa[idx]) for idx in _indices)
         _print("Y_FS =", self.Y_FS)
 
         self.Y_beta = Y_beta(self.geometrie.beta, self.geometrie.epsilon_beta)

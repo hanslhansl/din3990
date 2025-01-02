@@ -192,13 +192,13 @@ def test_1():
                 _assert = True,
                 S_Hstatmin=S_Hstatmin, S_Hdynmin=S_Hdyn_interval, S_Fstatmin=S_Fstatmin, S_Fdynmin=S_Fdyn_interval)
     
-    assert abs(1.6170108957470213 - getriebe.S_Hstat[0]) < 0.0001
-    assert abs(1.2079360526264216 - getriebe.S_Hdyn[0]) < 0.0001
-    assert abs(1.6194336251994612 - getriebe.S_Hstat[1]) < 0.0001
-    assert abs(1.2097458748478171 - getriebe.S_Hdyn[1]) < 0.0001
+    assert abs(1.6170108957470213 - getriebe.S_Hstat[0]) < 0.00001
+    assert abs(1.2079360526264216 - getriebe.S_Hdyn[0]) < 0.00001
+    assert abs(1.6194336251994612 - getriebe.S_Hstat[1]) < 0.00001
+    assert abs(1.2097458748478171 - getriebe.S_Hdyn[1]) < 0.00001
 
-    assert abs(3.8252189314867198 - getriebe.S_Fstat[0]) < 0.0001
-    assert abs(1.9120087306681766 - getriebe.S_Fdyn[0]) < 0.0001
-    assert abs(3.923835519570148 - getriebe.S_Fstat[1]) < 0.0001
-    assert abs(1.8787026617886324 - getriebe.S_Fdyn[1]) < 0.0001
+    assert abs(3.8252189314867198 - getriebe.S_Fstat[0]) < 0.00001
+    assert abs(1.9120087306681766 - getriebe.S_Fdyn[0]) < 0.00001
+    assert abs(3.923835519570148 - getriebe.S_Fstat[1]) < 0.00001
+    assert abs(1.8787026617886324 - getriebe.S_Fdyn[1]) < 0.00001
 
