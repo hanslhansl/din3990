@@ -20,7 +20,7 @@ def test_Norm_Beispiel_1():
                 R_z = (6, 12),
 
                 A = din3990_11.Tabelle3_2.ohneBreitenballigkeltOderEndrücknahme,
-                f_ma = (10, 10),  # Annahme, siehe Fußnote 5
+                f_ma = (10, 10),
                 s = (0.151 * 1125, 0.151 * 1125),
                 l = (1125., 1125.),
                 d_sh = (370., 370.),
