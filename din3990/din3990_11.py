@@ -4,8 +4,11 @@ from typing import Optional
 from enum import Enum, IntEnum, auto
 import math as m
 from scipy import optimize
-from . import din3990_5
 
+from . import din3990_5
+from .din3990_1 import Ritzel, Rad
+
+_indices = (Ritzel, Rad)
 
 def to_float(val) -> float:
     return val
@@ -21,9 +24,7 @@ def interpolate(a : float, b : float, t : float):
     return a - t * (a - b)
 
 dauerfest = float("inf")
-Ritzel = 0
-Rad = 1
-_indices = (Ritzel, Rad)
+
 
 @dataclass
 class Profil:
@@ -31,9 +32,10 @@ class Profil:
     h_aP_s : float
     h_fP_s : float
     rho_fP_s : float
-Normalprofil1 =     Profil(20, 1, 1.25, 0.250)
-Normalprofil2 =     Profil(20, 1, 1.25, 0.375)
-Protuberanzprofil = Profil(20, 1, 1.40, 0.400)
+    s_pr_s : float
+Normalprofil1 =     Profil(20, 1, 1.25, 0.250, 0.)
+Normalprofil2 =     Profil(20, 1, 1.25, 0.375, 0.)
+Protuberanzprofil = Profil(20, 1, 1.4,  0.4,   0.02)
 
 class Verzahnungsqualität(IntEnum):
     """nach DIN 3962 Teil1 bis Teil 3 bzw. ISO 1328 - 1975"""
@@ -78,28 +80,15 @@ class Fertigungsverfahren(IntEnum):
     geläpptGeschliffenGeschabt = auto()
 
 class _WerkstoffKategorie:
-    Art = din3990_5.Werkstoff.Art
-
-    # St = Art.Baustahl,
-    # V = Art.Vergütungsstahl,
-    # GG = Art.Grauguß,
-    GGG = Art.PerlitischesGußeisenMitKugelgraphit, Art.BainitischesGußeisenMitKugelgraphit, Art.FerritischesGußeisenMitKugelgraphit
-    # GTS = Art.SchwarzerTemperguß,
-    # Eh = Art.Einsatzstahl,
-    # IF = Art.InduktionsgehärteterStahl, Art.FlammgehärteterStahl, Art.InduktionsgehärtetesGußeisen, Art.FlammgehärtetesGußeisen
-    # NT = Art.Nitrierstahl,
-    # NVnitr = Art.NitrierterVergütungsstahl, Art.NitrierterEinsatzstahl
-    # NVnitrocar = Art.NitrokarburierterVergütungsstahl, Art.NitrokarburierterEinsatzstahl
-    # NTV = Art.Nitrierstahl, Art.NitrierterVergütungsstahl, Art.NitrokarburierterVergütungsstahl, Art.NitrokarburierterEinsatzstahl
-
     # für Tabelle 4.1
-    Stahl = (Art.Baustahl, Art.Vergütungsstahl, Art.Einsatzstahl,
-             Art.InduktionsgehärteterStahl, Art.FlammgehärteterStahl,
-             Art.Nitrierstahl, Art.NitrierterVergütungsstahl, Art.NitrierterEinsatzstahl,
-             Art.NitrokarburierterVergütungsstahl, Art.NitrokarburierterEinsatzstahl)
-    Stahlguß = ()
-    GußeisenMitKugelgraphit = Art.PerlitischesGußeisenMitKugelgraphit, Art.BainitischesGußeisenMitKugelgraphit, Art.FerritischesGußeisenMitKugelgraphit
-    GußeisenMitLamellengraphit = Art.Grauguß,
+    Stahl = (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.Vergütungsstahl, din3990_5.Werkstoff.Art.Einsatzstahl,
+             din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl,
+             din3990_5.Werkstoff.Art.Nitrierstahl, din3990_5.Werkstoff.Art.NitrierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrierterEinsatzstahl,
+             din3990_5.Werkstoff.Art.NitrokarburierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrokarburierterEinsatzstahl)
+    Stahlguß = din3990_5.Werkstoff.Art.Stahlguß,
+    GußeisenMitKugelgraphit = (din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit,
+                               din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit)
+    GußeisenMitLamellengraphit = din3990_5.Werkstoff.Art.Grauguß,
 
 def epsilon_alphan(epsilon_alpha : float, beta_b : float):
     """Bild 5.8"""
@@ -229,13 +218,21 @@ def K_s(stützwirkung : bool, bild3_2 : Bild3_2):
             return -0.36 if stützwirkung else -0.6
         case Bild3_2.e:
             return -0.6 if stützwirkung else -1.0
+    raise ValueError(f"{bild3_2}")
 def f_sh(F_m : float, d_1 : float, b : float, doppelschrägverzahnt : bool, A : Tabelle3_2, s : float,
          stützwirkung : Optional[bool] = None,
          bild3_2 : Optional[Bild3_2] = None,
          l : Optional[float] = None,
          d_sh : Optional[float] = None) -> float:
     """Glg 3.14, 3.15"""
-    temp = 0. if s == 0 else K_s(stützwirkung, bild3_2) * l * s / d_1**2 * (d_1 / d_sh)**4
+    if s == 0:
+        temp = 0.
+    else:
+        assert isinstance(stützwirkung, bool)
+        assert isinstance(bild3_2, Bild3_2)
+        assert isinstance(l, float)
+        assert isinstance(d_sh, float)
+        temp = K_s(stützwirkung, bild3_2) * l * s / d_1**2 * (d_1 / d_sh)**4
 
     if not doppelschrägverzahnt:
         return F_m / b * A * (abs(1 + temp - 0.3) + 0.3) * (b / d_1)**2
@@ -249,20 +246,25 @@ def F_betax(d_1 : float, f_sh : float, f_ma : float, doppelschrägverzahnt : boo
             l : Optional[float] = None,
             d_sh1 : Optional[float] = None) -> float:
     """Glg 3.09"""
-    
     if f_ma == 0:
         return abs(1.33 * f_sh)
     else:
-        B_s = 1.5 if doppelschrägverzahnt else 1
+        assert isinstance(bild3_1, Bild3_1)
+        B_s = 1.5 if doppelschrägverzahnt else 1.
         match bild3_1:
             case Bild3_1.a | Bild3_1.f:
                 multi = -1
             case Bild3_1.b | Bild3_1.e:
                 multi = 1
-            case Bild3_1.c:
-                multi = 1 if abs(K_s(stützwirkung, bild3_2)) * l * s / d_1**2 * (d_1 / d_sh1)**4 <= B_s else -1
-            case Bild3_1.d:
-                multi = 1 if abs(K_s(stützwirkung, bild3_2)) * l * s / d_1**2 * (d_1 / d_sh1)**4 >= B_s - 0.3 else -1
+            case Bild3_1.c | Bild3_1.d:
+                assert isinstance(stützwirkung, bool)
+                assert isinstance(bild3_2, Bild3_2)
+                assert isinstance(l, float)
+                assert isinstance(d_sh1, float)
+                if bild3_1 == Bild3_1.c:
+                    multi = 1 if abs(K_s(stützwirkung, bild3_2)) * l * s / d_1**2 * (d_1 / d_sh1)**4 <= B_s else -1
+                else:
+                    multi = 1 if abs(K_s(stützwirkung, bild3_2)) * l * s / d_1**2 * (d_1 / d_sh1)**4 >= B_s - 0.3 else -1
         return abs(1.33 * f_sh + multi * f_ma)
 def _y_beta(werkstoff : din3990_5.Werkstoff, v : float, F_betax : float):
     """Abschnitt 3.4.2.6"""
@@ -298,12 +300,11 @@ def _y_beta(werkstoff : din3990_5.Werkstoff, v : float, F_betax : float):
             return y_beta
     raise NotImplementedError
 def y_beta(werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff], v : float, F_betax : float):
-    print("======================================debug")
-    return 0.9841444905933301
     return (_y_beta(werkstoff[Ritzel], v, F_betax) + _y_beta(werkstoff[Rad], v, F_betax)) / 2
 def F_betay(F_betax : float, y_beta : float):
     return F_betax - y_beta
-def K_Hbeta(F_t : float, K_A : float, K_V : float, v : float, d_1 : float, b : float, doppelschrägverzahnt : bool, werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff], A : Tabelle3_2, s : float,
+def K_Hbeta(F_t : float, K_A : float, K_V : float, v : float, d_1 : float, b : float, doppelschrägverzahnt : bool, werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff],
+            A : Tabelle3_2, f_ma : float, s : float,
             bild3_1 : Optional[Bild3_2] = None,
             bild3_2 : Optional[Bild3_2] = None,
             stützwirkung : Optional[bool] = None,
@@ -318,11 +319,12 @@ def K_Hbeta(F_t : float, K_A : float, K_V : float, v : float, d_1 : float, b : f
 
     _F_m = F_m(F_t, K_A, K_V)
     _print("\tF_m =", _F_m)
+    _print("\tF_m / b =", _F_m / b)
 
     _f_sh = f_sh(_F_m, d_1, b, doppelschrägverzahnt, A, s, stützwirkung, bild3_2, l, d_sh)
     _print("\tf_sh =", _f_sh)
 
-    _F_betax = F_betax(d_1, _f_sh, 0, doppelschrägverzahnt, s, bild3_1, stützwirkung, bild3_2, l, d_sh1)
+    _F_betax = F_betax(d_1, _f_sh, f_ma, doppelschrägverzahnt, s, bild3_1, stützwirkung, bild3_2, l, d_sh1)
     _print("\tF_betax =", _F_betax)
 
     _y_beta = y_beta(werkstoff, v, _F_betax)
@@ -510,6 +512,8 @@ def Z_E(werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff]):
             return 181.4
         elif ws2 in _WerkstoffKategorie.GußeisenMitLamellengraphit:
             return 165.4
+        else:
+            ws2
     elif ws1 in _WerkstoffKategorie.Stahlguß:
         if ws2 in _WerkstoffKategorie.Stahl:
             return 188.9
@@ -572,14 +576,13 @@ def Z_LVRdyn(fertigungsverfahren : tuple[Fertigungsverfahren, Fertigungsverfahre
             # Glg 4.22
             return 1.
     else:
-        assert R_z100 <= 4
         # Glg 4.22
         return 0.92
-_Z_LVRdyn = Z_LVRdyn
 
 def _Z_W(werkstoff : din3990_5.Werkstoff, anderer_werkstoff : din3990_5.Werkstoff, andere_R_z : float):
     if andere_R_z <= 6:
-        if werkstoff.art in (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.Vergütungsstahl) or werkstoff.art in _WerkstoffKategorie.GGG:
+        if werkstoff.art in (din3990_5.Werkstoff.Art.Baustahl, din3990_5.Werkstoff.Art.Vergütungsstahl, din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit,
+                             din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit):
             if anderer_werkstoff.art in (din3990_5.Werkstoff.Art.Einsatzstahl, 
                                          din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl,
                                          din3990_5.Werkstoff.Art.InduktionsgehärtetesGußeisen, din3990_5.Werkstoff.Art.FlammgehärtetesGußeisen,
@@ -731,9 +734,9 @@ def Y_beta(beta : float, epsilon_beta : float):
 def Y_deltarelTstat(werkstoff : din3990_5.Werkstoff, Y_S : float):
     """Abschnitt 5.6"""
     if werkstoff.art in (din3990_5.Werkstoff.Art.Baustahl, ):
-        raise NotImplementedError
+        return (1 + 0.93 * (Y_S - 1) * m.pow(200 / werkstoff.sigma_02, 1/4)) / (1 + 0.93 * m.pow(200 / werkstoff.sigma_02, 1/4))
     elif werkstoff.art in (din3990_5.Werkstoff.Art.Vergütungsstahl, din3990_5.Werkstoff.Art.PerlitischesGußeisenMitKugelgraphit, din3990_5.Werkstoff.Art.BainitischesGußeisenMitKugelgraphit):
-        raise NotImplementedError
+        return (1 + 0.82 * (Y_S - 1) * m.pow(300 / werkstoff.sigma_02, 1/4)) / (1 + 0.82 * m.pow(300 / werkstoff.sigma_02, 1/4))
     elif werkstoff.art in (din3990_5.Werkstoff.Art.Einsatzstahl, din3990_5.Werkstoff.Art.NitrierterEinsatzstahl,
                            din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl):
         return 0.44 * Y_S + 0.12
@@ -744,7 +747,7 @@ def Y_deltarelTstat(werkstoff : din3990_5.Werkstoff, Y_S : float):
         return 0.07 * Y_S + 0.86
     elif werkstoff.art in (din3990_5.Werkstoff.Art.Grauguß, din3990_5.Werkstoff.Art.FerritischesGußeisenMitKugelgraphit):
         return 1.
-    raise NotImplementedError
+    raise NotImplementedError(werkstoff.art)
 def Y_deltarelTdyn(q_s : float):
     """Glg 5.11, 5.12"""
     if q_s >= 1.5:
@@ -872,8 +875,7 @@ def S_Fdyn(sigma_FGdyn : float, sigma_Fdyn : float):
 
 def E(m_n : float, h_fP : float, rho_fP : float, alpha_n : float, s_pr : float):
     """Glg D.5.01"""
-    return (m.pi / 4 * m_n - h_fP * m.tan(m.radians(alpha_n)) + s_pr / m.cos(m.radians(alpha_n))
-                    - (1 - m.sin(m.radians(alpha_n))) * rho_fP / m.cos(m.radians(alpha_n)))
+    return m.pi / 4 * m_n - h_fP * m.tan(m.radians(alpha_n)) + s_pr / m.cos(m.radians(alpha_n)) - (1 - m.sin(m.radians(alpha_n))) * rho_fP / m.cos(m.radians(alpha_n))
 def G(x : float, m_n : float, h_fP : float, rho_fP : float):
     """Glg D.5.02"""
     return rho_fP / m_n - h_fP / m_n + x
@@ -941,7 +943,6 @@ def AbschnittD_5(z_n : float, x : float, m_n : float, d : float, d_a : float, d_
     s_Fn, h_Fa, rho_F, alpha_Fan
     Abschnitt D.5a und b
     """
-    _print("innenverzahnt =", innenverzahnt)
     _E = E(m_n, h_fP, rho_fP, alpha_n, s_pr)
     _print("E =", _E)
 
@@ -992,12 +993,54 @@ def Y_FS(Y_Sa : float, Y_Fa : float):
     """Glg 5.08"""
     return Y_Sa * Y_Fa
 
+def d(z : int, m_t : float):
+    return abs(z) * m_t
+def d_b(d : float, alpha_t : float):
+    return d * m.cos(m.radians(alpha_t))
+def d_a(m_n : float, z : int, x : float, h_aP : float, k : float, d : float):
+    return d + 2 * z / abs(z) * (x * m_n + h_aP + k * m_n)
+def d_f(m_n : float, z : int, x : float, h_fP : float, d : float):
+    return d - 2 * z / abs(z) * (h_fP - x * m_n)
+def d_w(d_b : float, alpha_wt : float):
+    return d_b / m.cos(m.radians(alpha_wt))
+def h(m_n : float, k : float, h_aP : float, h_fP : float):
+    return h_aP + k * m_n + h_fP
+def z_min(m_n : float, x : float, h_aP0, alpha_t : float, beta : float):
+    return 2 * m.cos(m.radians(beta)) * (h_aP0 / m_n - x) / m.sin(m.radians(alpha_t))**2
+def gamma(z : int, x : float, alpha_n : float, alpha_t : float):
+    return inverse_involute( m.pi / 2 / z + 2 * x / z * m.tan(m.radians(alpha_n)) + involute(alpha_t))
+def d_amax(z : int, m_t : float, alpha_t : float, gamma : float):
+    return m_t * z * m.cos(m.radians(alpha_t)) / m.cos(m.radians(gamma))
+def alpha_t(alpha_n : float, beta : float):
+    return m.degrees(m.atan(m.tan(m.radians(alpha_n)) / m.cos(m.radians(beta))))
+def alpha_wt(z : tuple[int, int], x : tuple[float, float], alpha_n : float, alpha_t : float):
+    return inverse_involute(involute(alpha_t) + 2 * sum(x) / sum(z) * m.tan(m.radians(alpha_n)) )
+def u(z : tuple[int, int]):
+    return z[Rad] / z[Ritzel]
+def m_t(m_n : float, beta : float):
+    return m_n / m.cos(m.radians(beta))
+def beta_b(beta : float, alpha_t : float):
+    return m.degrees(m.atan(m.tan(m.radians(beta)) * m.cos(m.radians(alpha_t))))
+def a_w(z_2 : int, d_w : float):
+    return (d_w[Rad] + z_2 / abs(z_2) * d_w[Ritzel]) / 2
+def p_n(m_n : float):
+    return m_n * m.pi
+def p_t(p_n : float, beta : float):
+    return p_n / m.cos(m.radians(beta))
+def epsilon_alpha(z : tuple[int, int], d_a : tuple[float, float], d_b : tuple[float, float], p_t : float, alpha_t : float, alpha_wt : float):
+    return (m.sqrt(d_a[Ritzel]**2 - d_b[Ritzel]**2) + z[Rad] / abs(z[Rad]) * m.sqrt(d_a[Rad]**2 - d_b[Rad]**2)
+                              - (d_b[Ritzel] + z[Rad] / abs(z[Rad]) * d_b[Rad]) * m.tan(m.radians(alpha_wt))) / (2 * p_t * m.cos(m.radians(alpha_t)))
+def epsilon_beta(b : float, p_n : float, beta : float):
+    return b * m.sin(m.radians(beta)) / p_n
+def epsilon_gamma(epsilon_alpha : float, epsilon_beta : float):
+    return epsilon_alpha + epsilon_beta
+
 class DIN_21771:
     def __init__(self,
             m_n : float,
             z: tuple[int, int],
             x: tuple[float, float],
-            bezugsprofil : Profil,
+            bezugsprofil : tuple[Profil, Profil],
             beta : float,
             k : int,
             b : Optional[float] = None,
@@ -1010,6 +1053,8 @@ class DIN_21771:
         - x: Profilverschiebungsfaktoren
         """
 
+        assert all(z > 0 for z in z), "Innenverzahnung nicht implementiert"
+
         self.m_n = m_n
         self.z = z
         self.x = x
@@ -1019,47 +1064,42 @@ class DIN_21771:
         _print("Getriebegeometrie")
         [_print(key, "=", value) for key, value in vars(self).items()]
 
-        self.alpha_n = bezugsprofil.alpha_n
-        self.h_aP = bezugsprofil.h_aP_s * self.m_n
-        self.h_fP = bezugsprofil.h_fP_s * self.m_n
-        self.rho_fP = bezugsprofil.rho_fP_s * self.m_n
+        assert all(bezugsprofil[idx].alpha_n == bezugsprofil[Ritzel].alpha_n for idx in _indices)
+        self.alpha_n = bezugsprofil[Ritzel].alpha_n
+        self.h_aP = tuple(bezugsprofil[idx].h_aP_s * self.m_n for idx in _indices)
+        self.h_fP = tuple(bezugsprofil[idx].h_fP_s * self.m_n for idx in _indices)
+        self.rho_fP = tuple(bezugsprofil[idx].rho_fP_s * self.m_n for idx in _indices)
+        self.s_pr = tuple(bezugsprofil[idx].s_pr_s * self.m_n for idx in _indices)
         _print("α_n =", self.alpha_n)
         _print("h_aP =", self.h_aP)
         _print("h_fP =", self.h_fP)
         _print("ρ_fP =", self.rho_fP)
 
-        self.alpha_t = m.degrees(m.atan(m.tan(m.radians(self.alpha_n)) / m.cos(m.radians(self.beta))))
+        self.alpha_t = alpha_t(self.alpha_n, self.beta)
         _print("α_t =", self.alpha_t)
 
-        self.alpha_wt = inverse_involute( involute(self.alpha_t) + 2 * sum(self.x) / sum(self.z) * m.tan(m.radians(self.alpha_n)) )
+        self.alpha_wt = alpha_wt(self.z, self.x, self.alpha_n, self.alpha_t)
         _print("α_wt =", self.alpha_wt)
 
-        self.u = self.z[Rad] / self.z[Ritzel]
+        self.u = u(self.z)
         _print("u =", self.u)
 
-        def d(idx):
-            return self.z[idx] * self.m_n / m.cos(m.radians(self.beta))
-        self.d = d(Ritzel), d(Rad)
+        self.m_t = m_t(self.m_n, self.beta)
+        _print("m_t =", self.m_t)
+
+        self.d = tuple(d(self.z[idx], self.m_t) for idx in _indices)
         _print("d =", self.d)
 
-        def d_b(idx):
-            return self.d[idx] * m.cos(m.radians(self.alpha_t))
-        self.d_b = d_b(Ritzel), d_b(Rad)
+        self.d_b = tuple(d_b(self.d[idx], self.alpha_t) for idx in _indices)
         _print("d_b =", self.d_b)
 
-        def d_a(idx):
-            return self.d[idx] + 2 * (self.x[idx] * self.m_n + self.h_aP + self.k * self.m_n)
-        self.d_a = d_a(Ritzel), d_a(Rad)
+        self.d_a = tuple(d_a(self.m_n, self.z[idx], self.x[idx], self.h_aP[idx], self.k, self.d[idx]) for idx in _indices)
         _print("d_a =", self.d_a)
 
-        def d_f(idx):
-            return self.d[idx] - 2 * (self.h_fP - self.x[idx] * self.m_n)
-        self.d_f = d_f(Ritzel), d_f(Rad)
+        self.d_f = tuple(d_f(self.m_n, self.z[idx], self.x[idx], self.h_fP[idx], self.d[idx]) for idx in _indices)
         _print("d_f =", self.d_f)
 
-        def d_w(idx):
-            return self.d_b[idx] / m.cos(m.radians(self.alpha_wt))
-        self.d_w = d_w(Ritzel), d_w(Rad)
+        self.d_w = tuple(d_w(self.d_b[idx], self.alpha_wt) for idx in _indices)
         _print("d_w =", self.d_w)
 
         if b != None:
@@ -1070,33 +1110,30 @@ class DIN_21771:
             raise ValueError("either b or b_d_1_verhältnis must be specified as argument")
         _print("b =", self.b)
 
-        self.m_t = m_n / m.cos(m.radians(self.beta))
-        _print("m_t =", self.m_t)
-
-        self.beta_b = m.degrees(m.atan(m.tan(m.radians(self.beta)) * m.cos(m.radians(self.alpha_t))))
+        self.beta_b = beta_b(self.beta, self.alpha_t)
         _print("β_b =", self.beta_b)
-
-        self.h = self.h_aP + k * m_n + self.h_fP
+        
+        self.h = tuple(h(self.m_n, self.k, self.h_aP[idx], self.h_fP[idx]) for idx in _indices)
         _print("h =", self.h)
 
-        self.a_w = sum(self.d_w) / 2
+        self.a_w = a_w(self.z[Rad], self.d_w)
         _print("a_w =", self.a_w)
 
         # Profilüberdeckung
 
-        self.p_n = self.m_n * m.pi
+        self.p_n = p_n(self.m_n)
         _print("p_n =", self.p_n)
 
-        self.p_t = self.p_n / m.cos(m.radians(self.beta))
+        self.p_t = p_t(self.p_n, self.beta)
         _print("p_t =", self.p_t)
 
-        self.epsilon_alpha = (m.sqrt(self.d_a[Ritzel]**2 - self.d_b[Ritzel]**2) + m.sqrt(self.d_a[Rad]**2 - self.d_b[Rad]**2) - sum(self.d_b) * m.tan(m.radians(self.alpha_wt))) / (2 * self.p_t * m.cos(m.radians(self.alpha_t)))
+        self.epsilon_alpha = epsilon_alpha(self.z, self.d_a, self.d_b, self.p_t, self.alpha_t, self.alpha_wt)
         _print("ε_α =", self.epsilon_alpha)
 
-        self.epsilon_beta = self.b * m.sin(m.radians(self.beta)) / self.p_n
+        self.epsilon_beta = epsilon_beta(self.b, self.p_n, self.beta)
         _print("ε_β =", self.epsilon_beta)
 
-        self.epsilon_gamma = self.epsilon_alpha + self.epsilon_beta
+        self.epsilon_gamma = epsilon_gamma(self.epsilon_alpha, self.epsilon_beta)
         _print("ε_γ =", self.epsilon_gamma)
         assert self.epsilon_gamma > 1
 
@@ -1105,26 +1142,20 @@ class DIN_21771:
         self.h_aP0 = self.h_fP
         _print("h_aP0 =", self.h_aP0)
 
-        def _z_min(idx):
-            return 2 * m.cos(m.radians(self.beta)) * (self.h_aP0 / self.m_n - self.x[idx]) / m.sin(m.radians(self.alpha_t))**2
-        z_min = _z_min(Ritzel), _z_min(Rad)
-        _print("z_min =", z_min)
-        assert self.z[Ritzel] > z_min[Ritzel]
-        assert self.z[Rad] > z_min[Rad]
+        _z_min = tuple(z_min(self.m_n, self.x[idx], self.h_aP0[idx], self.alpha_t, self.beta) for idx in _indices)
+        _print("z_min =", _z_min)
+        assert self.z[Ritzel] > _z_min[Ritzel]
+        assert self.z[Rad] > _z_min[Rad]
 
         # Spitzwerden
 
-        def _gamma(idx):
-            return inverse_involute( m.pi / 2 / self.z[idx] + 2 * self.x[idx] / self.z[idx] * m.tan(m.radians(self.alpha_n)) + involute(self.alpha_t) )
-        gamma = _gamma(Ritzel), _gamma(Rad)
-        _print("γ =", gamma)
+        _gamma = tuple(gamma(self.z[idx], self.x[idx], self.alpha_n, self.alpha_t) for idx in _indices)
+        _print("γ =", _gamma)
 
-        def _d_amax(idx):
-            return self.m_t * self.z[idx] * m.cos(m.radians(self.alpha_t)) / m.cos(m.radians(gamma[idx]))
-        d_amax = _d_amax(Ritzel), _d_amax(Rad)
-        _print("d_amax =", d_amax)
-        assert self.d_a[Ritzel] <= d_amax[Ritzel]
-        assert self.d_a[Rad] <= d_amax[Rad]
+        _d_amax = tuple(d_amax(self.z[idx], self.m_t, self.alpha_t, _gamma[idx]) for idx in _indices)
+        _print("d_amax =", _d_amax)
+        assert self.d_a[Ritzel] <= _d_amax[Ritzel]
+        assert self.d_a[Rad] <= _d_amax[Rad]
 
         _print()
         return
@@ -1132,7 +1163,8 @@ class DIN_21771:
 _K_V = K_V
 _K_Hbeta = K_Hbeta
 _K_Fbeta = K_Fbeta
-class DIN_3990_11:
+_Z_LVRdyn = Z_LVRdyn
+class Calculator:
     def __init__(self,
                 geometrie : DIN_21771,
                 P : float,
@@ -1146,7 +1178,6 @@ class DIN_3990_11:
                 doppelschrägverzahnt: bool = False,
                 innenverzahnt: bool = False,
                 gewisseGrübchenbildung : bool = False,
-                s_pr: float = 0,
                 
                 K_V : tuple[Optional[float], Optional[float]] = (None, None),
                 K_Hbeta : tuple[Optional[float], Optional[float]] = (None, None),
@@ -1185,7 +1216,6 @@ class DIN_3990_11:
         - doppelschrägverzahnt
         - innenverzahnt
         - gewisseGrübchenbildung: ob gewisse Grübchenbildung zulässig ist
-        - s_pr: float, Fussfreischnitt
         - _print: the function used for printing
         - _assert if True, safety is asserted which additionally requires the same arguments as passed to Getriebe.is_safe()
 
@@ -1211,6 +1241,8 @@ class DIN_3990_11:
         - K_Falpha
         """
         
+        assert not innenverzahnt, "Innenverzahnte Getriebe sind nicht implementiert"
+
         _print("Parameter")
         [_print(key, "=", value) for key, value in locals().items() if key not in ("self", "_print")]
         _print()
@@ -1227,7 +1259,6 @@ class DIN_3990_11:
         self.doppelschrägverzahnt = doppelschrägverzahnt
         self.innenverzahnt = innenverzahnt
         self.gewisseGrübchenbildung = gewisseGrübchenbildung
-        self.s_pr = s_pr
 
         self.K_V = K_V
         self.K_Hbeta = K_Hbeta
@@ -1269,10 +1300,6 @@ class DIN_3990_11:
         _print("DIN 3990-11")
         _print("n =", self.n)
 
-        # if self.doppelschrägverzahnt:
-        #     self.b_B = self.geometrie.b / 2
-        #     _print("b_B =", self.b_B)
-
         self.v = v(self.n[Ritzel], self.geometrie.d[Ritzel])
         _print("v =", self.v)
 
@@ -1286,12 +1313,12 @@ class DIN_3990_11:
                             _print) if K_V is None else K_V for idx, K_V in zip(_indices, self.K_V))
         _print("K_V =", self.K_V)
 
-        self.K_Hbeta = tuple(_K_Hbeta(self.F_t, self.K_A, self.K_V[idx], self.v, self.geometrie.d[Ritzel], self.geometrie.b, self.doppelschrägverzahnt, self.werkstoff, self.A, self.s[idx],
-                                      self.bild3_1[idx], self.bild3_2[idx], self.stützwirkung[idx], self.l[idx], self.d_sh[idx], self.d_sh[Ritzel], _print)
+        self.K_Hbeta = tuple(_K_Hbeta(self.F_t, self.K_A, self.K_V[idx], self.v, self.geometrie.d[Ritzel], self.geometrie.b, self.doppelschrägverzahnt, self.werkstoff,
+                                      self.A, self.f_ma[idx], self.s[idx], self.bild3_1[idx], self.bild3_2[idx], self.stützwirkung[idx], self.l[idx], self.d_sh[idx], self.d_sh[Ritzel], _print)
                              if K_Hbeta is None else K_Hbeta for idx, K_Hbeta in zip(_indices, self.K_Hbeta))
         _print("K_Hβ =", self.K_Hbeta)
         
-        self.K_Fbeta = tuple(_K_Fbeta(self.F_t, self.K_A, self.K_Hbeta[idx], self.geometrie.b, self.geometrie.h) if K_Fbeta is None else K_Fbeta for idx, K_Fbeta in zip(_indices, self.K_Fbeta))
+        self.K_Fbeta = tuple(_K_Fbeta(self.F_t, self.K_A, self.K_Hbeta[idx], self.geometrie.b, self.geometrie.h[idx]) if K_Fbeta is None else K_Fbeta for idx, K_Fbeta in zip(_indices, self.K_Fbeta))
         _print("K_Fβ =", self.K_Fbeta)
         
         self.Z_epsilon = Z_epsilon(self.geometrie.beta, self.geometrie.epsilon_alpha, self.geometrie.epsilon_beta)
@@ -1378,8 +1405,8 @@ class DIN_3990_11:
         self.z_n = tuple(z_n(self.geometrie.z[idx], self.geometrie.beta, self.geometrie.beta_b) for idx in _indices)
         _print("z_n =", self.z_n)
 
-        _AbschnittD_5 = tuple(AbschnittD_5(self.z_n[idx], self.geometrie.x[idx], self.geometrie.m_n, self.geometrie.d[idx], self.geometrie.d_a[idx], self.geometrie.d_f[idx], self.geometrie.h_fP,
-                                           self.geometrie.rho_fP, self.s_pr, self.geometrie.alpha_n, self.innenverzahnt if idx == Rad else False, _print) for idx in _indices)
+        _AbschnittD_5 = tuple(AbschnittD_5(self.z_n[idx], self.geometrie.x[idx], self.geometrie.m_n, self.geometrie.d[idx], self.geometrie.d_a[idx], self.geometrie.d_f[idx], self.geometrie.h_fP[idx],
+                                           self.geometrie.rho_fP[idx], self.geometrie.s_pr[idx], self.geometrie.alpha_n, self.innenverzahnt if idx == Rad else False, _print) for idx in _indices)
         self.s_Fn, self.h_Fa, self.rho_F, self.alpha_Fan  = zip(_AbschnittD_5[0], _AbschnittD_5[1])
         _print("s_Fn =", self.s_Fn)
         _print("h_Fa =", self.h_Fa)

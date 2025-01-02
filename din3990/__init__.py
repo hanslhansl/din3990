@@ -4,7 +4,11 @@ Implementiert die DIN 743 zur .
 Siehe https://github.com/hanslhansl/din3990.
 """
 
-#raise NotImplementedError("bevor ich etwas ändere sollte ich mittels code von github einen test schreiben, um Fehler zu erkennen")
+from .din3990_1 import Ritzel, Rad
+from . import din3990_1
+from . import din3990_5
+from . import din3990_11
+
 
 """
 Funktionen die Werkstoffart benötigen:

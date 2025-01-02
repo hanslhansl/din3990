@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import IntEnum, auto
+from typing import Optional
 
 
 @dataclass
@@ -30,3 +31,9 @@ class Werkstoff:
     sigma_FE : float
     HB : float
     """Nur das Intervall (130; 470) ist relevant"""
+    sigma_02 : Optional[float] = None
+    """Notwendig für Baustahl, Vergütungsstahl, PerlitischesGußeisenMitKugelgraphit, BainitischesGußeisenMitKugelgraphit"""
+
+    def __post_init__(self):
+        if self.art in (self.Art.Baustahl, self.Art.Vergütungsstahl, self.Art.PerlitischesGußeisenMitKugelgraphit, self.Art.BainitischesGußeisenMitKugelgraphit):
+            assert self.sigma_02 is not None
