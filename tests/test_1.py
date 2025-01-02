@@ -34,3 +34,32 @@ def test_Norm_Beispiel_1():
     assert abs(getriebe.S_Fdyn[Ritzel] - 4.8) < 0.1
     assert abs(getriebe.S_Fdyn[Rad] - 3.3) < 0.01
 
+def test_MEL_2023_24():
+    werkstoff = din3990_5.Werkstoff(din3990_5.Werkstoff.Art.Einsatzstahl, 1300, 860, 650)
+
+    geometrie = din3990_11.DIN_21771(m_n = 3,
+                        z = (17, 38),
+                        x = (0.2, -0.2),
+                        bezugsprofil = (din3990_11.Normalprofil2, din3990_11.Normalprofil2),
+                        beta = 15,
+                        k = 0,
+                        b = 40)
+
+    getriebe = din3990_11.Calculator(geometrie = geometrie, P = 7.3,
+                n_1 = 1274.11764705882363,
+                verzahnungsqualität = (din3990_11.Verzahnungsqualität.DIN6, din3990_11.Verzahnungsqualität.DIN6),
+                werkstoff = (werkstoff, werkstoff),
+                K_A = 1.1,
+                K_S = 1.1,
+                R_z = (6, 12),
+                
+                K_Halpha = (1, 1),
+                K_Hbeta = (1.3, 1.3),
+
+                K_Falpha = (1, 1),
+                K_Fbeta = (1, 1),
+                fertigungsverfahren = (din3990_11.Fertigungsverfahren.wälzgefrästWälzgestoßenWälzgehobelt, din3990_11.Fertigungsverfahren.wälzgefrästWälzgestoßenWälzgehobelt))
+    
+    assert abs(getriebe.S_Hdyn[Rad] - 2.058) < 0.01
+
+test_MEL_2023_24()
