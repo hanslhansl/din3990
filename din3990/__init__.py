@@ -1,8 +1,6 @@
-"""
-Implementiert die DIN 743 zur .
+"""Implementation of DIN 3990 - Calculation of load capacity of cylindrical gears.
 
-Siehe https://github.com/hanslhansl/din3990.
-"""
+See https://github.com/hanslhansl/din3990."""
 
 from .din3990_1 import Ritzel, Rad
 from . import din3990_1
