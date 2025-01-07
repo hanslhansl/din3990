@@ -1,4 +1,5 @@
 from din3990 import *
+from din3962 import din3962_2
 
 
 S_Hstatmin = 1.3
@@ -19,7 +20,7 @@ geometrie = din3990_11.DIN_21771(m_n = 4,
 
 getriebe = din3990_11.Calculator(geometrie = geometrie, P = 55,
             n_1 = 980,
-            verzahnungsqualität = (din3990_11.Verzahnungsqualität.DIN6, din3990_11.Verzahnungsqualität.DIN7),
+            verzahnungsqualität = (din3962_2.GearToothQuality.DIN6, din3962_2.GearToothQuality.DIN7),
             werkstoff = (werkstoff, werkstoff),
             K_A = 1.75,
             K_S = 2.5,

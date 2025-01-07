@@ -4,6 +4,7 @@ from enum import Enum, IntEnum, auto
 import math as m
 from scipy import optimize
 
+from din3962 import din3962_1
 from . import din3990_5
 from .din3990_1 import Ritzel, Rad
 
@@ -35,24 +36,6 @@ class Profil:
 Normalprofil1 =     Profil(20, 1, 1.25, 0.250, 0.)
 Normalprofil2 =     Profil(20, 1, 1.25, 0.375, 0.)
 Protuberanzprofil = Profil(20, 1, 1.4,  0.4,   0.02)
-
-class Verzahnungsqualität(IntEnum):
-    """nach DIN 3962 Teil 1 bis Teil 3 bzw. ISO 1328 - 1975"""
-    DIN6 = 6
-    DIN7 = 7
-    DIN8 = 8
-    DIN9 = 9
-    DIN10 = 10
-    DIN11 = 11
-    DIN12 = 12
-    ISO5 = 105
-    ISO6 = 106
-    ISO7 = 107
-    ISO8 = 108
-    ISO9 = 109
-    ISO10 = 110
-    ISO11 = 111
-    ISO12 = 112
 
 class Tabelle3_2(float, Enum):
     ohneBreitenballigkeltOderEndrücknahme = 0.023

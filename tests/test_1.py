@@ -1,4 +1,5 @@
 from din3990 import *
+from din3962 import din3962_2
 
 def test_Norm_Beispiel_1():
     werkstoff = din3990_5.Werkstoff(din3990_5.Werkstoff.Art.Einsatzstahl, 1500, 860, 650), din3990_5.Werkstoff(din3990_5.Werkstoff.Art.Vergütungsstahl, 740, 590, 266, 900)
@@ -13,7 +14,7 @@ def test_Norm_Beispiel_1():
 
     getriebe = din3990_11.Calculator(geometrie = geometrie, P = 1500,
                 n_1 = 275.2,
-                verzahnungsqualität = (din3990_11.Verzahnungsqualität.DIN6, din3990_11.Verzahnungsqualität.DIN6),
+                verzahnungsqualität = (din3962_2.GearToothQuality.DIN6, din3962_2.GearToothQuality.DIN6),
                 werkstoff = werkstoff,
                 K_A = 1.25,
                 K_S = 1.25,
@@ -47,7 +48,7 @@ def test_MEL_2023_24():
 
     getriebe = din3990_11.Calculator(geometrie = geometrie, P = 7.3,
                 n_1 = 1274.11764705882363,
-                verzahnungsqualität = (din3990_11.Verzahnungsqualität.DIN6, din3990_11.Verzahnungsqualität.DIN6),
+                verzahnungsqualität = (din3962_2.GearToothQuality.DIN6, din3962_2.GearToothQuality.DIN6),
                 werkstoff = (werkstoff, werkstoff),
                 K_A = 1.1,
                 K_S = 1.1,
@@ -61,5 +62,3 @@ def test_MEL_2023_24():
                 fertigungsverfahren = (din3990_11.Fertigungsverfahren.wälzgefrästWälzgestoßenWälzgehobelt, din3990_11.Fertigungsverfahren.wälzgefrästWälzgestoßenWälzgehobelt))
     
     assert abs(getriebe.S_Hdyn[Rad] - 2.058) < 0.01
-
-test_MEL_2023_24()
