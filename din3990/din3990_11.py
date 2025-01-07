@@ -37,7 +37,7 @@ Normalprofil2 =     Profil(20, 1, 1.25, 0.375, 0.)
 Protuberanzprofil = Profil(20, 1, 1.4,  0.4,   0.02)
 
 class Verzahnungsqualität(IntEnum):
-    """nach DIN 3962 Teil1 bis Teil 3 bzw. ISO 1328 - 1975"""
+    """nach DIN 3962 Teil 1 bis Teil 3 bzw. ISO 1328 - 1975"""
     DIN6 = 6
     DIN7 = 7
     DIN8 = 8

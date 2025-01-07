@@ -10,10 +10,9 @@ readme = "README.md"
 license = {file = "LICENSE.txt"}
 authors = [{name = "hanslhansl", email = "p4u1_1@posteo.at"}]
 dependencies = [
-    # Hier kannst du Abhängigkeiten hinzufügen, z. B.:
-    # "numpy>=1.21.0",
     "colorama",
-    "scipy"
+    "scipy",
+    "din3962 @ git+https://github.com/hanslhansl/din3962.git"
 ]
 
 [tool.setuptools]
