@@ -2,9 +2,11 @@ from dataclasses import dataclass
 from typing import Optional
 from enum import Enum, IntEnum, auto
 import math as m
+import diniso1328
 from scipy import optimize
 
-from din3962 import din3962_1
+from din3962 import din3962_2
+from diniso1328 import diniso1328_1
 from . import din3990_5
 from .din3990_1 import Ritzel, Rad
 
@@ -37,12 +39,14 @@ Normalprofil1 =     Profil(20, 1, 1.25, 0.250, 0.)
 Normalprofil2 =     Profil(20, 1, 1.25, 0.375, 0.)
 Protuberanzprofil = Profil(20, 1, 1.4,  0.4,   0.02)
 
-class Tabelle3_2(float, Enum):
+class HilfswertA(float, Enum):
+    """Tabelle 3.2"""
     ohneBreitenballigkeltOderEndrücknahme = 0.023
     mitSinnvollerBreitenballigkeit = 0.012
     mitSinnvollerEndrücknahme = 0.016
 
-class Bild3_1(IntEnum):
+class Kontakttragbild(IntEnum):
+    """Bild 3.1"""
     a = auto()
     b = auto()
     c = auto()
@@ -50,7 +54,8 @@ class Bild3_1(IntEnum):
     e = auto()
     f = auto()
 
-class Bild3_2(IntEnum):
+class RitzelPosition(IntEnum):
+    """Bild 3.2"""
     a = auto()
     b = auto()
     c = auto()
@@ -60,6 +65,13 @@ class Bild3_2(IntEnum):
 class Fertigungsverfahren(IntEnum):
     wälzgefrästWälzgestoßenWälzgehobelt = auto()
     geläpptGeschliffenGeschabt = auto()
+
+class AnpassungmaßnahmeUndFlankenlinienkorrektur(IntEnum):
+    """Tabelle 3.2 und Abschnitt 3.4.2."""
+    ohne = auto()
+    mitSinnvollerEndrücknahme = auto()
+    mitSinnvollerBreitenballigkeit = auto()
+    mitAnpassungsmaßnahmen = auto()
 
 class _WerkstoffKategorie:
     # für Tabelle 4.1
@@ -85,79 +97,76 @@ def T(P : float, n : float):
     """Glg 3.02"""
     return 30000 * P / n / m.pi
 
-def K_1(verzahnungsqualität : Verzahnungsqualität, geradverzahnt : bool):
+def K_1(q : din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, geradverzahnt : bool):
     """Tabelle 3.1"""
     if geradverzahnt:
-        match verzahnungsqualität:
-            case Verzahnungsqualität.DIN6:
+        match q:
+            case din3962_2.GearToothQuality.DIN6:
                 return 9.6
-            case Verzahnungsqualität.DIN7:
+            case din3962_2.GearToothQuality.DIN7:
                 return 15.3
-            case Verzahnungsqualität.DIN8:
+            case din3962_2.GearToothQuality.DIN8:
                 return 24.5
-            case Verzahnungsqualität.DIN9:
+            case din3962_2.GearToothQuality.DIN9:
                 return 34.5
-            case Verzahnungsqualität.DIN10:
+            case din3962_2.GearToothQuality.DIN10:
                 return 53.6
-            case Verzahnungsqualität.DIN11:
+            case din3962_2.GearToothQuality.DIN11:
                 return 76.6
-            case Verzahnungsqualität.DIN12:
+            case din3962_2.GearToothQuality.DIN12:
                 return 122.5
-            case Verzahnungsqualität.ISO5:
+            case diniso1328_1.FlankToleranceClass.ISO5:
                 return 7.5
-            case Verzahnungsqualität.ISO6:
+            case diniso1328_1.FlankToleranceClass.ISO6:
                 return 14.9
-            case Verzahnungsqualität.ISO7:
+            case diniso1328_1.FlankToleranceClass.ISO7:
                 return 26.8
-            case Verzahnungsqualität.ISO8:
+            case diniso1328_1.FlankToleranceClass.ISO8:
                 return 39.1
-            case Verzahnungsqualität.ISO9:
+            case diniso1328_1.FlankToleranceClass.ISO9:
                 return 52.8
-            case Verzahnungsqualität.ISO10:
+            case diniso1328_1.FlankToleranceClass.ISO10:
                 return 76.6
-            case Verzahnungsqualität.ISO11:
+            case diniso1328_1.FlankToleranceClass.ISO11:
                 return 102.6
-            case Verzahnungsqualität.ISO12:
-                return 146.3
     else:
-        match verzahnungsqualität:
-            case Verzahnungsqualität.DIN6:
+        match q:
+            case din3962_2.GearToothQuality.DIN6:
                 return 8.5
-            case Verzahnungsqualität.DIN7:
+            case din3962_2.GearToothQuality.DIN7:
                 return 13.6
-            case Verzahnungsqualität.DIN8:
+            case din3962_2.GearToothQuality.DIN8:
                 return 21.8
-            case Verzahnungsqualität.DIN9:
+            case din3962_2.GearToothQuality.DIN9:
                 return 30.7
-            case Verzahnungsqualität.DIN10:
+            case din3962_2.GearToothQuality.DIN10:
                 return 47.7
-            case Verzahnungsqualität.DIN11:
+            case din3962_2.GearToothQuality.DIN11:
                 return 68.2
-            case Verzahnungsqualität.DIN12:
+            case din3962_2.GearToothQuality.DIN12:
                 return 109.1
-            case Verzahnungsqualität.ISO5:
+            case diniso1328_1.FlankToleranceClass.ISO5:
                 return 6.7
-            case Verzahnungsqualität.ISO6:
+            case diniso1328_1.FlankToleranceClass.ISO6:
                 return 13.3
-            case Verzahnungsqualität.ISO7:
+            case diniso1328_1.FlankToleranceClass.ISO7:
                 return 23.9
-            case Verzahnungsqualität.ISO8:
+            case diniso1328_1.FlankToleranceClass.ISO8:
                 return 34.8
-            case Verzahnungsqualität.ISO9:
+            case diniso1328_1.FlankToleranceClass.ISO9:
                 return 47.0
-            case Verzahnungsqualität.ISO10:
+            case diniso1328_1.FlankToleranceClass.ISO10:
                 return 68.2
-            case Verzahnungsqualität.ISO11:
+            case diniso1328_1.FlankToleranceClass.ISO11:
                 return 91.4
-            case Verzahnungsqualität.ISO12:
-                return 130.3
-    raise ValueError(f"Falsche Verzahnungsqualität {verzahnungsqualität}")
+    raise ValueError(f"Falsche Verzahnungsqualität {q}")
 def K_2(geradverzahnt : bool):
     """Tabelle 3.1"""
     if geradverzahnt:
         return 0.0193
     return 0.0087
-def K_V(z_1 : int, v : float, u : float, F_t : float, K_A : float, b : float, epsilon_beta : float, geradverzahnt : bool, verzahnungsqualität : Verzahnungsqualität, _print):
+def K_V(z_1 : int, v : float, u : float, F_t : float, K_A : float, b : float, epsilon_beta : float, geradverzahnt : bool,
+        verzahnungsqualität : din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, _print):
     """Abschnitt 3.3"""
     # Glg 3.04
     temp1 = z_1 * v / 100 * m.sqrt(u**2 / (1 + u**2))
@@ -187,66 +196,95 @@ def K_V(z_1 : int, v : float, u : float, F_t : float, K_A : float, b : float, ep
 def F_m(F_t : float, K_A : float, K_V : float):
     """Glg 3.07"""
     return F_t * K_A * K_V
-def K_s(stützwirkung : bool, bild3_2 : Bild3_2):
+def K_s(stützwirkung : bool, ritzelPosition : RitzelPosition):
     """Bild 3.2"""
-    match bild3_2:
-        case Bild3_2.a:
+    match ritzelPosition:
+        case RitzelPosition.a:
             return 0.48 if stützwirkung else 0.8
-        case Bild3_2.b:
+        case RitzelPosition.b:
             return -0.48 if stützwirkung else -0.8
-        case Bild3_2.c:
+        case RitzelPosition.c:
             return 1.33
-        case Bild3_2.d:
+        case RitzelPosition.d:
             return -0.36 if stützwirkung else -0.6
-        case Bild3_2.e:
+        case RitzelPosition.e:
             return -0.6 if stützwirkung else -1.0
-    raise ValueError(f"{bild3_2}")
-def f_sh(F_m : float, d_1 : float, b : float, doppelschrägverzahnt : bool, A : Tabelle3_2, s : float,
+    raise ValueError(f"{ritzelPosition}")
+def f_sh(F_m : float, d_1 : float, b : float, s : float, doppelschrägverzahnt : bool, anpassungmaßnahmeUndFlankenlinienkorrektur : AnpassungmaßnahmeUndFlankenlinienkorrektur,
          stützwirkung : Optional[bool] = None,
-         bild3_2 : Optional[Bild3_2] = None,
+         ritzelPosition : Optional[RitzelPosition] = None,
          l : Optional[float] = None,
          d_sh : Optional[float] = None) -> float:
     """Glg 3.14, 3.15"""
+
+    match anpassungmaßnahmeUndFlankenlinienkorrektur:
+        case AnpassungmaßnahmeUndFlankenlinienkorrektur.mitSinnvollerEndrücknahme:
+            A = 0.016
+        case AnpassungmaßnahmeUndFlankenlinienkorrektur.mitSinnvollerBreitenballigkeit:
+            A = 0.012
+        case _:
+            A = 0.023
+
     if s == 0:
         temp = 0.
     else:
         assert isinstance(stützwirkung, bool)
-        assert isinstance(bild3_2, Bild3_2)
+        assert isinstance(ritzelPosition, RitzelPosition)
         assert isinstance(l, float)
         assert isinstance(d_sh, float)
-        temp = K_s(stützwirkung, bild3_2) * l * s / d_1**2 * (d_1 / d_sh)**4
+        temp = K_s(stützwirkung, ritzelPosition) * l * s / d_1**2 * (d_1 / d_sh)**4
 
     if not doppelschrägverzahnt:
         return F_m / b * A * (abs(1 + temp - 0.3) + 0.3) * (b / d_1)**2
     else:
         b_B = b / 2
         return F_m / b * 2 * A * (abs(1.5 + temp - 0.3) + 0.3) * (b_B / d_1)**2
-def F_betax(d_1 : float, f_sh : float, f_ma : float, doppelschrägverzahnt : bool, s : float,
-            bild3_1 : Optional[Bild3_1],
-            bild3_2 : Optional[Bild3_2] = None,
+def f_Hbeta(d : float, b : float, verzahnungsqualität : din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass):
+    if isinstance(verzahnungsqualität, din3962_2.GearToothQuality):
+        return din3962_2.Deviations(verzahnungsqualität, b)[1]
+    else:
+        return diniso1328_1.f_Hbeta(d, b, verzahnungsqualität)
+def F_betax(d : tuple[float, float], b : float, f_sh : float, doppelschrägverzahnt : bool, s : float,
+            verzahnungsqualität : tuple[din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass],
+            f_ma : Optional[float],
+            anpassungmaßnahmeUndFlankenlinienkorrektur : Optional[AnpassungmaßnahmeUndFlankenlinienkorrektur],
+            kontakttragbild : Optional[Kontakttragbild],
+            ritzelPosition : Optional[RitzelPosition] = None,
             stützwirkung : Optional[bool] = None,
             l : Optional[float] = None,
             d_sh1 : Optional[float] = None) -> float:
     """Glg 3.09"""
+    if f_ma is None:
+        assert isinstance(anpassungmaßnahmeUndFlankenlinienkorrektur, AnpassungmaßnahmeUndFlankenlinienkorrektur)
+        _f_Hbeta = max(f_Hbeta(d[idx], b, verzahnungsqualität[idx]) for idx in _indices)
+        match anpassungmaßnahmeUndFlankenlinienkorrektur:
+            case AnpassungmaßnahmeUndFlankenlinienkorrektur.ohne:
+                f_ma = _f_Hbeta
+            case AnpassungmaßnahmeUndFlankenlinienkorrektur.mitAnpassungsmaßnahmen | AnpassungmaßnahmeUndFlankenlinienkorrektur.mitSinnvollerBreitenballigkeit:
+                f_ma = 0.5 * _f_Hbeta
+            case AnpassungmaßnahmeUndFlankenlinienkorrektur.mitSinnvollerEndrücknahme:
+                f_ma = 0.7 * _f_Hbeta
+                anpassungmaßnahmeUndFlankenlinienkorrektur
+
     if f_ma == 0:
         return abs(1.33 * f_sh)
     else:
-        assert isinstance(bild3_1, Bild3_1)
+        assert isinstance(kontakttragbild, Kontakttragbild)
         B_s = 1.5 if doppelschrägverzahnt else 1.
-        match bild3_1:
-            case Bild3_1.a | Bild3_1.f:
+        match kontakttragbild:
+            case Kontakttragbild.a | Kontakttragbild.f:
                 multi = -1
-            case Bild3_1.b | Bild3_1.e:
+            case Kontakttragbild.b | Kontakttragbild.e:
                 multi = 1
-            case Bild3_1.c | Bild3_1.d:
+            case Kontakttragbild.c | Kontakttragbild.d:
                 assert isinstance(stützwirkung, bool)
-                assert isinstance(bild3_2, Bild3_2)
+                assert isinstance(ritzelPosition, RitzelPosition)
                 assert isinstance(l, float)
                 assert isinstance(d_sh1, float)
-                if bild3_1 == Bild3_1.c:
-                    multi = 1 if abs(K_s(stützwirkung, bild3_2)) * l * s / d_1**2 * (d_1 / d_sh1)**4 <= B_s else -1
+                if kontakttragbild == Kontakttragbild.c:
+                    multi = 1 if abs(K_s(stützwirkung, ritzelPosition)) * l * s / d[Ritzel]**2 * (d[Ritzel] / d_sh1)**4 <= B_s else -1
                 else:
-                    multi = 1 if abs(K_s(stützwirkung, bild3_2)) * l * s / d_1**2 * (d_1 / d_sh1)**4 >= B_s - 0.3 else -1
+                    multi = 1 if abs(K_s(stützwirkung, ritzelPosition)) * l * s / d[Ritzel]**2 * (d[Ritzel] / d_sh1)**4 >= B_s - 0.3 else -1
         return abs(1.33 * f_sh + multi * f_ma)
 def _y_beta(werkstoff : din3990_5.Werkstoff, v : float, F_betax : float):
     """Abschnitt 3.4.2.6"""
@@ -285,10 +323,12 @@ def y_beta(werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff], v : floa
     return (_y_beta(werkstoff[Ritzel], v, F_betax) + _y_beta(werkstoff[Rad], v, F_betax)) / 2
 def F_betay(F_betax : float, y_beta : float):
     return F_betax - y_beta
-def K_Hbeta(F_t : float, K_A : float, K_V : float, v : float, d_1 : float, b : float, doppelschrägverzahnt : bool, werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff],
-            A : Tabelle3_2, f_ma : float, s : float,
-            bild3_1 : Optional[Bild3_2] = None,
-            bild3_2 : Optional[Bild3_2] = None,
+def K_Hbeta(F_t : float, K_A : float, K_V : float, v : float, d : tuple[float, float], b : float, doppelschrägverzahnt : bool,
+            anpassungmaßnahmeUndFlankenlinienkorrektur : AnpassungmaßnahmeUndFlankenlinienkorrektur, werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff], s : float,
+            verzahnungsqualität : tuple[din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass],
+            f_ma : Optional[float],
+            kontakttragbild : Optional[Kontakttragbild] = None,
+            ritzelPosition : Optional[RitzelPosition] = None,
             stützwirkung : Optional[bool] = None,
             l : Optional[float] = None,
             d_sh : Optional[float] = None,
@@ -303,10 +343,10 @@ def K_Hbeta(F_t : float, K_A : float, K_V : float, v : float, d_1 : float, b : f
     _print("\tF_m =", _F_m)
     _print("\tF_m / b =", _F_m / b)
 
-    _f_sh = f_sh(_F_m, d_1, b, doppelschrägverzahnt, A, s, stützwirkung, bild3_2, l, d_sh)
+    _f_sh = f_sh(_F_m, d[Ritzel], b, s, doppelschrägverzahnt, anpassungmaßnahmeUndFlankenlinienkorrektur, stützwirkung, ritzelPosition, l, d_sh)
     _print("\tf_sh =", _f_sh)
 
-    _F_betax = F_betax(d_1, _f_sh, f_ma, doppelschrägverzahnt, s, bild3_1, stützwirkung, bild3_2, l, d_sh1)
+    _F_betax = F_betax(d, b, _f_sh, doppelschrägverzahnt, s, verzahnungsqualität, f_ma, anpassungmaßnahmeUndFlankenlinienkorrektur, kontakttragbild, stützwirkung, ritzelPosition, l, d_sh1)
     _print("\tF_betax =", _F_betax)
 
     _y_beta = y_beta(werkstoff, v, _F_betax)
@@ -335,13 +375,16 @@ def K_Fbeta(F_t : float, K_A : float, K_Hbeta : float, b : float, h : float):
     return m.pow(K_Hbeta, (1 / (1 + h_b + h_b**2)))
 
 def K_H_Falpha(K_A : float, F_t : float, b : float, beta_b : float, epsilon_alpha : float, geradverzahnt : bool, werkstoff : din3990_5.Werkstoff,
-               verzahnungsqualität : tuple[Verzahnungsqualität, Verzahnungsqualität], Z_epsilon : float, Y_epsilon : float):
+               verzahnungsqualität : tuple[din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass],
+               Z_epsilon : float, Y_epsilon : float):
     """
     K_Hα und K_Fα
     Tabelle 3.3
     """
+    qualität = max(q if isinstance(q, din3962_2.GearToothQuality) else din3962_2.GearToothQuality(q + 1) for q in verzahnungsqualität)
     linienbelastung = F_t / b * K_A
-    qualität = Verzahnungsqualität(max(vq + 99 if Verzahnungsqualität.DIN6 <= vq <= Verzahnungsqualität.DIN12 else vq for vq in verzahnungsqualität))
+    linienbelastung_größer = linienbelastung > 100
+    und_gröber = qualität >= din3962_2.GearToothQuality.DIN6
 
     if werkstoff.art in (din3990_5.Werkstoff.Art.Einsatzstahl,
                          din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl,
@@ -349,91 +392,92 @@ def K_H_Falpha(K_A : float, F_t : float, b : float, beta_b : float, epsilon_alph
                          din3990_5.Werkstoff.Art.Nitrierstahl, din3990_5.Werkstoff.Art.NitrierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrierterEinsatzstahl,
                          din3990_5.Werkstoff.Art.NitrokarburierterVergütungsstahl, din3990_5.Werkstoff.Art.NitrokarburierterEinsatzstahl):
         if geradverzahnt:
-            if linienbelastung > 100:
+            if linienbelastung_größer:
                 match qualität:
-                    case Verzahnungsqualität.ISO5 | Verzahnungsqualität.ISO6:
+                    case (din3962_2.GearToothQuality.DIN6 | din3962_2.GearToothQuality.DIN7):
                         return 1., 1.
-                    case Verzahnungsqualität.ISO7:
+                    case din3962_2.GearToothQuality.DIN8:
                         return 1.1, 1.1
-                    case Verzahnungsqualität.ISO8:
+                    case din3962_2.GearToothQuality.DIN9:
                         return 1.2, 1.2
-                    case Verzahnungsqualität.ISO9 | Verzahnungsqualität.ISO10 | Verzahnungsqualität.ISO11 | Verzahnungsqualität.ISO12:
+                    case din3962_2.GearToothQuality.DIN10 | din3962_2.GearToothQuality.DIN11 | din3962_2.GearToothQuality.DIN12:
                         K_H = 1 / Z_epsilon**2
                         K_F = 1 / Y_epsilon**2
                         assert K_H >= 1.2
                         assert K_F >= 1.2
                         return K_H, K_F
             else:
-                if qualität >= Verzahnungsqualität.ISO5:
+                if und_gröber:
                     K_H = 1 / Z_epsilon**2
                     K_F = 1 / Y_epsilon**2
                     assert K_H >= 1.2
                     assert K_F >= 1.2
                     return K_H, K_F
         else:
-            if linienbelastung > 100:
+            if linienbelastung_größer:
                 match qualität:
-                    case Verzahnungsqualität.ISO5:
+                    case din3962_2.GearToothQuality.DIN6:
                         return 1., 1.
-                    case Verzahnungsqualität.ISO6:
+                    case din3962_2.GearToothQuality.DIN7:
                         return 1.1, 1.1
-                    case Verzahnungsqualität.ISO7:
+                    case din3962_2.GearToothQuality.DIN8:
                         return 1.2, 1.2
-                    case Verzahnungsqualität.ISO8:
+                    case din3962_2.GearToothQuality.DIN9:
                         return 1.4, 1.4
-                    case Verzahnungsqualität.ISO9 | Verzahnungsqualität.ISO10 | Verzahnungsqualität.ISO11 | Verzahnungsqualität.ISO12:
+                    case din3962_2.GearToothQuality.DIN10 | din3962_2.GearToothQuality.DIN11 | din3962_2.GearToothQuality.DIN12:
                         K = epsilon_alpha / m.cos(m.radians(beta_b))**2
                         assert K >= 1.4
                         return K, K
             else:
-                if qualität >= Verzahnungsqualität.ISO5:
+                if und_gröber:
                     K = epsilon_alpha / m.cos(m.radians(beta_b))**2
                     assert K >= 1.4
                     return K, K
     else:
         if geradverzahnt:
-            if linienbelastung > 100:
+            if linienbelastung_größer:
                 match qualität:
-                    case Verzahnungsqualität.ISO5 | Verzahnungsqualität.ISO6 | Verzahnungsqualität.ISO7:
+                    case din3962_2.GearToothQuality.DIN6 | din3962_2.GearToothQuality.DIN7 | din3962_2.GearToothQuality.DIN8:
                         return 1., 1.
-                    case Verzahnungsqualität.ISO8:
+                    case din3962_2.GearToothQuality.DIN9:
                         return 1.1, 1.1
-                    case Verzahnungsqualität.ISO9:
+                    case din3962_2.GearToothQuality.DIN10:
                         return 1.2, 1.2
-                    case Verzahnungsqualität.ISO10 | Verzahnungsqualität.ISO11 | Verzahnungsqualität.ISO12:
+                    case din3962_2.GearToothQuality.DIN11 | din3962_2.GearToothQuality.DIN12:
                         K_H = 1 / Z_epsilon**2
                         K_F = 1 / Y_epsilon**2
                         assert K_H >= 1.2
                         assert K_F >= 1.2
                         return K_H, K_F
             else:
-                if qualität >= Verzahnungsqualität.ISO5:
+                if und_gröber:
                     K_H = 1 / Z_epsilon**2
                     K_F = 1 / Y_epsilon**2
                     assert K_H >= 1.2
                     assert K_F >= 1.2
                     return K_H, K_F
         else:
-            if linienbelastung > 100:
+            if linienbelastung_größer:
                 match qualität:
-                    case Verzahnungsqualität.ISO5 | Verzahnungsqualität.ISO6:
+                    case din3962_2.GearToothQuality.DIN6 | din3962_2.GearToothQuality.DIN7:
                         return 1., 1.
-                    case Verzahnungsqualität.ISO7:
+                    case din3962_2.GearToothQuality.DIN8:
                         return 1.1, 1.1
-                    case Verzahnungsqualität.ISO8:
+                    case din3962_2.GearToothQuality.DIN9:
                         return 1.2, 1.2
-                    case Verzahnungsqualität.ISO9:
+                    case din3962_2.GearToothQuality.DIN10:
                         return 1.4, 1.4
-                    case Verzahnungsqualität.ISO10 | Verzahnungsqualität.ISO11 | Verzahnungsqualität.ISO12:
+                    case din3962_2.GearToothQuality.DIN11 | din3962_2.GearToothQuality.DIN12:
                         K = epsilon_alpha / m.cos(m.radians(beta_b))**2
                         assert K >= 1.4
                         return K, K
             else:
-                if qualität >= Verzahnungsqualität.ISO5:
+                if und_gröber:
                     K = epsilon_alpha / m.cos(m.radians(beta_b))**2
                     assert K >= 1.4
                     return K, K
-    raise ValueError(f"Unerwartete Verzahnungsqualität {qualität}")
+
+    raise ValueError(f"Unerwartete Verzahnungsqualität {verzahnungsqualität} oder Werkstoff {werkstoff.art}")
 
 def M_1(z : tuple[int, int], d_a : tuple[float, float], d_b : tuple[float, float], alpha_wt : float, epsilon_alpha : float):
     """Glg 4.12"""
@@ -459,7 +503,8 @@ def M_2(z : tuple[int, int], d_a : tuple[float, float], d_b : tuple[float, float
     return m.tan(m.radians(alpha_wt)) / m.sqrt(
             (m.sqrt(d_a[Rad]**2 / d_b[Rad]**2 - 1) - 2 * m.pi / z[Rad]) *
             (m.sqrt(d_a[Ritzel]**2 / d_b[Ritzel]**2 - 1) - (epsilon_alpha - 1) * 2 * m.pi / z[Ritzel]))
-def Z_D(z : tuple[int, int], d_a : tuple[float, float], d_b : tuple[float, float], alpha_wt : float, epsilon_alpha : float, epsilon_beta : float, geradverzahnt : bool, innenverzahnt : bool, _print = print):
+def Z_D(z : tuple[int, int], d_a : tuple[float, float], d_b : tuple[float, float], alpha_wt : float, epsilon_alpha : float, epsilon_beta : float, geradverzahnt : bool, innenverzahnt : bool,
+        _print = print):
     """Abschnitt 4.2"""
 
     if innenverzahnt:
@@ -1151,7 +1196,7 @@ class Calculator:
                 geometrie : DIN_21771,
                 P : float,
                 n_1 : float,
-                verzahnungsqualität : tuple[Verzahnungsqualität, Verzahnungsqualität],
+                verzahnungsqualität : tuple[din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass],
                 werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff],
                 K_A : float,
                 K_S : float,
@@ -1163,13 +1208,13 @@ class Calculator:
                 
                 K_V : tuple[Optional[float], Optional[float]] = (None, None),
                 K_Hbeta : tuple[Optional[float], Optional[float]] = (None, None),
-                A : Optional[Tabelle3_2] = None,
+                anpassungmaßnahmeUndFlankenlinienkorrektur : Optional[AnpassungmaßnahmeUndFlankenlinienkorrektur] = None,
                 f_ma : tuple[Optional[float], Optional[float]] = (None, None),
-                bild3_1 : tuple[Optional[Bild3_1], Optional[Bild3_1]] =  (None, None),
-                s : tuple[Optional[float], Optional[float]] = (None, None),
-                stützwirkung : tuple[Optional[bool], Optional[bool]] =  (None, None),
-                bild3_2 : tuple[Optional[Bild3_2], Optional[Bild3_2]] =  (None, None),
-                l : tuple[Optional[float], Optional[float]] = (None, None),
+                kontakttragbild : tuple[Optional[Kontakttragbild], Optional[Kontakttragbild]] =  (None, None),
+                s : Optional[float] = None,
+                stützwirkung : Optional[bool] =  None,
+                ritzelPosition : Optional[RitzelPosition] =  None,
+                l : Optional[float] = None,
                 d_sh : tuple[Optional[float], Optional[float]] = (None, None),
                 Z_LVRdyn : Optional[float] = None,
                 fertigungsverfahren : Optional[tuple[Fertigungsverfahren, Fertigungsverfahren]] = None,
@@ -1205,14 +1250,14 @@ class Calculator:
         - K_V
         - K_Hbeta
           or 
-            - A: siehe Tabelle 3.2
+            - anpassungmaßnahmeUndFlankenlinienkorrektur
             - f_ma: siehe Abschnitt 3.4.2.4
               if f_ma != 0:
-                - bild3_1: siehe Bild 3.1
+                - kontakttragbild: siehe Bild 3.1
             - s: siehe Bild 3.2
               if s != 0:
                 - stützwirkung: siehe Bild 3.2
-                - bild3_2: siehe Bild 3.2
+                - ritzelPosition: siehe Bild 3.2
                 - l: siehe Bild 3.2
                 - d_sh: Wellendurchmesser
         - Z_LVRdyn: float, siehe Abschnitt 4.8
@@ -1244,12 +1289,12 @@ class Calculator:
 
         self.K_V = K_V
         self.K_Hbeta = K_Hbeta
-        self.A = A
+        self.anpassungmaßnahmeUndFlankenlinienkorrektur = anpassungmaßnahmeUndFlankenlinienkorrektur
         self.f_ma = f_ma
-        self.bild3_1 = bild3_1
+        self.kontakttragbild = kontakttragbild
         self.s = s
         self.stützwirkung = stützwirkung
-        self.bild3_2 = bild3_2
+        self.ritzelPosition = ritzelPosition
         self.l = l
         self.d_sh = d_sh
         self.Z_LVRdyn = Z_LVRdyn
@@ -1295,8 +1340,9 @@ class Calculator:
                             _print) if K_V is None else K_V for idx, K_V in zip(_indices, self.K_V))
         _print("K_V =", self.K_V)
 
-        self.K_Hbeta = tuple(_K_Hbeta(self.F_t, self.K_A, self.K_V[idx], self.v, self.geometrie.d[Ritzel], self.geometrie.b, self.doppelschrägverzahnt, self.werkstoff,
-                                      self.A, self.f_ma[idx], self.s[idx], self.bild3_1[idx], self.bild3_2[idx], self.stützwirkung[idx], self.l[idx], self.d_sh[idx], self.d_sh[Ritzel], _print)
+        self.K_Hbeta = tuple(_K_Hbeta(self.F_t, self.K_A, self.K_V[idx], self.v, self.geometrie.d, self.geometrie.b, self.doppelschrägverzahnt, self.anpassungmaßnahmeUndFlankenlinienkorrektur,
+                                      self.werkstoff, self.s, self.verzahnungsqualität, self.f_ma[idx], self.kontakttragbild[idx], self.ritzelPosition, self.stützwirkung, self.l, self.d_sh[idx],
+                                      self.d_sh[Ritzel], _print)
                              if K_Hbeta is None else K_Hbeta for idx, K_Hbeta in zip(_indices, self.K_Hbeta))
         _print("K_Hβ =", self.K_Hbeta)
         

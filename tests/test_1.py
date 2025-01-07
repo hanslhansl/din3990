@@ -20,14 +20,14 @@ def test_Norm_Beispiel_1():
                 K_S = 1.25,
                 R_z = (6, 12),
 
-                A = din3990_11.Tabelle3_2.ohneBreitenballigkeltOderEndrücknahme,
+                anpassungmaßnahmeUndFlankenlinienkorrektur = din3990_11.AnpassungmaßnahmeUndFlankenlinienkorrektur.ohne,
                 f_ma = (10, 10),
-                s = (0.151 * 1125, 0.151 * 1125),
-                l = (1125., 1125.),
+                s = 0.151 * 1125,
+                l = 1125.,
                 d_sh = (370., 370.),
-                stützwirkung = (False, False),
-                bild3_1 = (din3990_11.Bild3_1.a, din3990_11.Bild3_1.a),
-                bild3_2 = (din3990_11.Bild3_2.e, din3990_11.Bild3_2.e),
+                stützwirkung = False,
+                kontakttragbild = (din3990_11.Kontakttragbild.a, din3990_11.Kontakttragbild.a),
+                ritzelPosition = din3990_11.RitzelPosition.e,
                 fertigungsverfahren = (din3990_11.Fertigungsverfahren.geläpptGeschliffenGeschabt, din3990_11.Fertigungsverfahren.wälzgefrästWälzgestoßenWälzgehobelt))
     
     assert abs(getriebe.S_Hdyn[Ritzel] - 2.1) < 0.01

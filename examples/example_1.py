@@ -26,9 +26,9 @@ getriebe = din3990_11.Calculator(geometrie = geometrie, P = 55,
             K_S = 2.5,
             R_z = (5, 5),
 
-            A = din3990_11.Tabelle3_2.ohneBreitenballigkeltOderEndrücknahme,
+            anpassungmaßnahmeUndFlankenlinienkorrektur = din3990_11.AnpassungmaßnahmeUndFlankenlinienkorrektur.ohne,
             f_ma = (0, 0),  # Annahme, siehe Fußnote 5
-            s = (0, 0),
+            s = 0,
             fertigungsverfahren = (din3990_11.Fertigungsverfahren.geläpptGeschliffenGeschabt, din3990_11.Fertigungsverfahren.geläpptGeschliffenGeschabt),
 
             S_Hstatmin=S_Hstatmin, S_Hdynmin=S_Hdyn_interval, S_Fstatmin=S_Fstatmin, S_Fdynmin=S_Fdyn_interval,
