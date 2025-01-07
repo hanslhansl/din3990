@@ -13,7 +13,7 @@ dependencies = [
     "colorama",
     "scipy",
     "din3962 @ git+https://github.com/hanslhansl/din3962.git",
-    "din3962 @ git+https://github.com/hanslhansl/diniso1328.git"
+    "diniso1328 @ git+https://github.com/hanslhansl/diniso1328.git"
 ]
 
 [tool.setuptools]
