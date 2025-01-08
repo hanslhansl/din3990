@@ -1,5 +1,6 @@
 from din3990 import *
 from din3962 import din3962_2
+import diniso21771
 
 
 S_Hstatmin = 1.3
@@ -9,7 +10,7 @@ S_Fdyn_interval = (1.5, 2)
 
 werkstoff = din3990_5.Werkstoff(din3990_5.Werkstoff.Art.Einsatzstahl, 1500, 860, 220)
 
-geometrie = din3990_11.DIN_21771(m_n = 4,
+geometrie = diniso21771.GearGeometry(m_n = 4,
                     z = (19, 104),
                     x = (0.5, 0.15),
                     bezugsprofil = (din3990_11.Normalprofil1, din3990_11.Normalprofil1),

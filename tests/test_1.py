@@ -1,10 +1,11 @@
 from din3990 import *
 from din3962 import din3962_2
+import diniso21771
 
 def test_Norm_Beispiel_1():
     werkstoff = din3990_5.Werkstoff(din3990_5.Werkstoff.Art.Einsatzstahl, 1500, 860, 650), din3990_5.Werkstoff(din3990_5.Werkstoff.Art.Vergütungsstahl, 740, 590, 266, 900)
 
-    geometrie = din3990_11.DIN_21771(m_n = 16,
+    geometrie = diniso21771.GearGeometry(m_n = 16,
                         z = (23, 113),
                         x = (0.313, -0.071),
                         bezugsprofil = (din3990_11.Protuberanzprofil, din3990_11.Normalprofil1),
@@ -38,7 +39,7 @@ def test_Norm_Beispiel_1():
 def test_MEL_2023_24():
     werkstoff = din3990_5.Werkstoff(din3990_5.Werkstoff.Art.Einsatzstahl, 1300, 860, 650)
 
-    geometrie = din3990_11.DIN_21771(m_n = 3,
+    geometrie = diniso21771.GearGeometry(m_n = 3,
                         z = (17, 38),
                         x = (0.2, -0.2),
                         bezugsprofil = (din3990_11.Normalprofil2, din3990_11.Normalprofil2),

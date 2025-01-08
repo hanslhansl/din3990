@@ -924,7 +924,7 @@ def alpha_an(d_bn : float, d_an : float):
     return m.degrees(m.acos(d_bn / d_an))
 def y_a(x : float, alpha_n : float, z_n : float, alpha_an : float):
     """Glg D.5.10"""
-    return 1 / z_n * (m.pi / 2 + 2 * x * m.tan(m.radians(alpha_n))) + involute(alpha_n) - involute(alpha_an)
+    return 1 / z_n * (m.pi / 2 + 2 * x * m.tan(m.radians(alpha_n))) + diniso21771.involute(alpha_n) - diniso21771.involute(alpha_an)
 def alpha_Fan(x : float, alpha_n : float, z_n : float, d_n : float, d_an : float, innenverzahnt : bool, _print = print):
     """Glg D.5.11"""
     if not innenverzahnt:
@@ -1007,8 +1007,6 @@ def Y_FS(Y_Sa : float, Y_Fa : float):
     """Glg 5.08"""
     return Y_Sa * Y_Fa
 
-
-  
 _K_V = K_V
 _f_ma = f_ma
 _K_Hbeta = K_Hbeta
