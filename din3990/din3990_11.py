@@ -1013,6 +1013,26 @@ _K_Hbeta = K_Hbeta
 _K_Fbeta = K_Fbeta
 _Z_LVRdyn = Z_LVRdyn
 class Calculator:
+
+    @staticmethod
+    def _check_safety(val, min_or_interv, name, full_name, _print):
+        is_safe = True
+        if isinstance(min_or_interv, tuple):
+            res = min_or_interv[0] <= val <= min_or_interv[1]
+            if res:
+                _print("\033[32m", name, " = ", val, " in ", min_or_interv, "\033[0m", sep="")
+            else:
+                _print("\033[31m", name, " = ", val, " not in ", min_or_interv, ", ", full_name, " is not fulfilled\033[0m", sep="")
+                is_safe = False
+        else:
+            res = min_or_interv <= val
+            if res:
+                _print("\033[32m", name, " = ", val, " >= ", min_or_interv, "\033[0m", sep="")
+            else:
+                _print("\033[31m", name, " = ", val, " < ", min_or_interv, ", ", full_name, " is not fulfilled\033[0m", sep="")
+                is_safe = False
+        return is_safe
+
     def __init__(self,
                 geometrie : diniso21771.GearGeometry,
                 P : float,
@@ -1088,7 +1108,7 @@ class Calculator:
         - K_Halpha
         - K_Falpha
         """
-        
+
         assert not innenverzahnt, "Innenverzahnte Getriebe sind nicht implementiert"
 
         _print("Parameter")
@@ -1123,19 +1143,6 @@ class Calculator:
         self.K_Fbeta = K_Fbeta
         self.K_Halpha = K_Halpha
         self.K_Falpha = K_Falpha
-
-        def check_value(idx : int, val : tuple[float, float], min_or_interv : float | tuple[float, float], name : str, full_name : str):
-            val = val[idx]
-            if isinstance(min_or_interv, tuple):
-                _print(name, idx + 1, " = ", val, " in ", min_or_interv, sep="")
-                res = min_or_interv[0] <= val <= min_or_interv[1]
-            else:
-                _print(name, idx + 1, " = ", val, " >= ", min_or_interv, sep="")
-                res = min_or_interv <= val
-            if res == False:
-                _print("\033[31m", full_name, " von Rad ", idx + 1, " ist nicht erfüllt\033[0m", sep="")
-            if _assert:
-                assert res
 
 
         geradverzahnt = self.geometrie.beta == 0
@@ -1246,11 +1253,10 @@ class Calculator:
         self.S_Hstat = tuple(S_Hstat(self.sigma_HGstat[idx], self.sigma_Hstat[idx]) for idx in _indices)
         self.S_Hdyn = tuple(S_Hdyn(self.sigma_HGdyn[idx], self.sigma_Hdyn[idx]) for idx in _indices)
 
-
-        check_value(Ritzel, self.S_Hstat, S_Hstatmin, "S_Hstat", "statische Grübchensicherheit")
-        check_value(Ritzel, self.S_Hdyn, S_Hdynmin, "S_Hdyn", "dynamische Grübchensicherheit")
-        check_value(Rad, self.S_Hstat, S_Hstatmin, "S_Hstat", "statische Grübchensicherheit")
-        check_value(Rad, self.S_Hdyn, S_Hdynmin, "S_Hdyn", "dynamische Grübchensicherheit")
+        assert self._check_safety(self.S_Hstat[Ritzel], S_Hstatmin, "S_Hstat1", "statische Grübchensicherheit des Ritzels", _print) or not _assert
+        assert self._check_safety(self.S_Hdyn[Ritzel], S_Hdynmin, "S_Hdyn1", "dynamische Grübchensicherheit des Ritzels", _print) or not _assert
+        assert self._check_safety(self.S_Hstat[Rad], S_Hstatmin, "S_Hstat2", "statische Grübchensicherheit des Rades", _print) or not _assert
+        assert self._check_safety(self.S_Hdyn[Rad], S_Hdynmin, "S_Hdyn2", "dynamische Grübchensicherheit des Rades", _print) or not _assert
         _print()
         
         # Zahnfußtragfähigkeit
@@ -1328,12 +1334,13 @@ class Calculator:
 
         self.S_Fstat = tuple(S_Fstat(self.sigma_FGstat[idx], self.sigma_Fstat[idx]) for idx in _indices)
         self.S_Fdyn = tuple(S_Fdyn(self.sigma_FGdyn[idx], self.sigma_Fdyn[idx]) for idx in _indices)
-
-        check_value(Ritzel, self.S_Fstat, S_Fstatmin, "S_Fstat", "statische Zahnbruchsicherheit")
-        check_value(Ritzel, self.S_Fdyn, S_Fdynmin, "S_Fdyn", "dynamische Zahnbruchsicherheit")
-        check_value(Rad, self.S_Fstat, S_Fstatmin, "S_Fstat", "statische Zahnbruchsicherheit")
-        check_value(Rad, self.S_Fdyn, S_Fdynmin, "S_Fdyn", "dynamische Zahnbruchsicherheit")
+        
+        assert self._check_safety(self.S_Fstat[Ritzel], S_Fstatmin, "S_Fstat1", "statische Zahnbruchsicherheit des Ritzels", _print) or not _assert
+        assert self._check_safety(self.S_Fdyn[Ritzel], S_Fdynmin, "S_Fdyn1", "dynamische Zahnbruchsicherheit des Ritzels", _print) or not _assert
+        assert self._check_safety(self.S_Fstat[Rad], S_Fstatmin, "S_Fstat2", "statische Zahnbruchsicherheit des Rads", _print) or not _assert
+        assert self._check_safety(self.S_Fdyn[Rad], S_Fdynmin, "S_Fdyn2", "dynamische Zahnbruchsicherheit des Rads", _print) or not _assert
         _print()
+
         return
 
 

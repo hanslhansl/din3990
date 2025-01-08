@@ -34,7 +34,7 @@ getriebe = din3990_11.Calculator(geometrie = geometrie, P = 55,
 
             S_Hstatmin=S_Hstatmin, S_Hdynmin=S_Hdyn_interval, S_Fstatmin=S_Fstatmin, S_Fdynmin=S_Fdyn_interval,
 
-            _assert = True)
+            _assert = False)
 
 
 assert geometrie.b / geometrie.m_n <= 30 # Konstruktionsvorgaben Tabelle 4
