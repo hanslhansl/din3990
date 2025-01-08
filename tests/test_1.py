@@ -21,7 +21,7 @@ def test_Norm_Beispiel_1():
                 R_z = (6, 12),
 
                 anpassungmaßnahmeUndFlankenlinienkorrektur = din3990_11.AnpassungmaßnahmeUndFlankenlinienkorrektur.ohne,
-                f_ma = (10, 10),
+                f_ma = 10,
                 s = 0.151 * 1125,
                 l = 1125.,
                 d_sh = (370., 370.),

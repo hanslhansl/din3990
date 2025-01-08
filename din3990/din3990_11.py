@@ -193,6 +193,23 @@ def K_V(z_1 : int, v : float, u : float, F_t : float, K_A : float, b : float, ep
         K_Vbeta = _K_V(False)
         return interpolate(K_Valpha, K_Vbeta, epsilon_beta)
 
+def f_Hbeta(d : float, b : float, verzahnungsqualität : din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass):
+    if isinstance(verzahnungsqualität, din3962_2.GearToothQuality):
+        return din3962_2.Deviations(verzahnungsqualität, b)[1]
+    else:
+        return diniso1328_1.f_Hbeta(d, b, verzahnungsqualität)
+def f_ma(d : tuple[float, float], b : float, verzahnungsqualität : tuple[din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass],
+         anpassungmaßnahmeUndFlankenlinienkorrektur : AnpassungmaßnahmeUndFlankenlinienkorrektur):
+    """Abschnitt 3.4.2.4"""
+    _f_Hbeta = max(f_Hbeta(d[idx], b, verzahnungsqualität[idx]) for idx in _indices)
+    match anpassungmaßnahmeUndFlankenlinienkorrektur:
+        case AnpassungmaßnahmeUndFlankenlinienkorrektur.ohne:
+            return _f_Hbeta
+        case AnpassungmaßnahmeUndFlankenlinienkorrektur.mitAnpassungsmaßnahmen | AnpassungmaßnahmeUndFlankenlinienkorrektur.mitSinnvollerBreitenballigkeit:
+            return 0.5 * _f_Hbeta
+        case AnpassungmaßnahmeUndFlankenlinienkorrektur.mitSinnvollerEndrücknahme:
+            return 0.7 * _f_Hbeta
+
 def F_m(F_t : float, K_A : float, K_V : float):
     """Glg 3.07"""
     return F_t * K_A * K_V
@@ -239,33 +256,13 @@ def f_sh(F_m : float, d_1 : float, b : float, s : float, doppelschrägverzahnt :
     else:
         b_B = b / 2
         return F_m / b * 2 * A * (abs(1.5 + temp - 0.3) + 0.3) * (b_B / d_1)**2
-def f_Hbeta(d : float, b : float, verzahnungsqualität : din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass):
-    if isinstance(verzahnungsqualität, din3962_2.GearToothQuality):
-        return din3962_2.Deviations(verzahnungsqualität, b)[1]
-    else:
-        return diniso1328_1.f_Hbeta(d, b, verzahnungsqualität)
-def F_betax(d : tuple[float, float], b : float, f_sh : float, doppelschrägverzahnt : bool, s : float,
-            verzahnungsqualität : tuple[din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass],
-            f_ma : Optional[float],
-            anpassungmaßnahmeUndFlankenlinienkorrektur : Optional[AnpassungmaßnahmeUndFlankenlinienkorrektur],
+def F_betax(d : tuple[float, float], b : float, f_sh : float, doppelschrägverzahnt : bool, s : float, f_ma : float,
             kontakttragbild : Optional[Kontakttragbild],
             ritzelPosition : Optional[RitzelPosition] = None,
             stützwirkung : Optional[bool] = None,
             l : Optional[float] = None,
             d_sh1 : Optional[float] = None) -> float:
     """Glg 3.09"""
-    if f_ma is None:
-        assert isinstance(anpassungmaßnahmeUndFlankenlinienkorrektur, AnpassungmaßnahmeUndFlankenlinienkorrektur)
-        _f_Hbeta = max(f_Hbeta(d[idx], b, verzahnungsqualität[idx]) for idx in _indices)
-        match anpassungmaßnahmeUndFlankenlinienkorrektur:
-            case AnpassungmaßnahmeUndFlankenlinienkorrektur.ohne:
-                f_ma = _f_Hbeta
-            case AnpassungmaßnahmeUndFlankenlinienkorrektur.mitAnpassungsmaßnahmen | AnpassungmaßnahmeUndFlankenlinienkorrektur.mitSinnvollerBreitenballigkeit:
-                f_ma = 0.5 * _f_Hbeta
-            case AnpassungmaßnahmeUndFlankenlinienkorrektur.mitSinnvollerEndrücknahme:
-                f_ma = 0.7 * _f_Hbeta
-                anpassungmaßnahmeUndFlankenlinienkorrektur
-
     if f_ma == 0:
         return abs(1.33 * f_sh)
     else:
@@ -324,9 +321,7 @@ def y_beta(werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff], v : floa
 def F_betay(F_betax : float, y_beta : float):
     return F_betax - y_beta
 def K_Hbeta(F_t : float, K_A : float, K_V : float, v : float, d : tuple[float, float], b : float, doppelschrägverzahnt : bool,
-            anpassungmaßnahmeUndFlankenlinienkorrektur : AnpassungmaßnahmeUndFlankenlinienkorrektur, werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff], s : float,
-            verzahnungsqualität : tuple[din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass],
-            f_ma : Optional[float],
+            anpassungmaßnahmeUndFlankenlinienkorrektur : AnpassungmaßnahmeUndFlankenlinienkorrektur, werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff], s : float, f_ma : float,
             kontakttragbild : Optional[Kontakttragbild] = None,
             ritzelPosition : Optional[RitzelPosition] = None,
             stützwirkung : Optional[bool] = None,
@@ -346,7 +341,7 @@ def K_Hbeta(F_t : float, K_A : float, K_V : float, v : float, d : tuple[float, f
     _f_sh = f_sh(_F_m, d[Ritzel], b, s, doppelschrägverzahnt, anpassungmaßnahmeUndFlankenlinienkorrektur, stützwirkung, ritzelPosition, l, d_sh)
     _print("\tf_sh =", _f_sh)
 
-    _F_betax = F_betax(d, b, _f_sh, doppelschrägverzahnt, s, verzahnungsqualität, f_ma, anpassungmaßnahmeUndFlankenlinienkorrektur, kontakttragbild, stützwirkung, ritzelPosition, l, d_sh1)
+    _F_betax = F_betax(d, b, _f_sh, doppelschrägverzahnt, s, f_ma, kontakttragbild, stützwirkung, ritzelPosition, l, d_sh1)
     _print("\tF_betax =", _F_betax)
 
     _y_beta = y_beta(werkstoff, v, _F_betax)
@@ -1188,6 +1183,7 @@ class DIN_21771:
         return
   
 _K_V = K_V
+_f_ma = f_ma
 _K_Hbeta = K_Hbeta
 _K_Fbeta = K_Fbeta
 _Z_LVRdyn = Z_LVRdyn
@@ -1209,7 +1205,7 @@ class Calculator:
                 K_V : tuple[Optional[float], Optional[float]] = (None, None),
                 K_Hbeta : tuple[Optional[float], Optional[float]] = (None, None),
                 anpassungmaßnahmeUndFlankenlinienkorrektur : Optional[AnpassungmaßnahmeUndFlankenlinienkorrektur] = None,
-                f_ma : tuple[Optional[float], Optional[float]] = (None, None),
+                f_ma : Optional[float] = None,
                 kontakttragbild : tuple[Optional[Kontakttragbild], Optional[Kontakttragbild]] =  (None, None),
                 s : Optional[float] = None,
                 stützwirkung : Optional[bool] =  None,
@@ -1340,8 +1336,12 @@ class Calculator:
                             _print) if K_V is None else K_V for idx, K_V in zip(_indices, self.K_V))
         _print("K_V =", self.K_V)
 
+        if self.f_ma is None:
+            self.f_ma = _f_ma(self.geometrie.d, self.geometrie.b, self.verzahnungsqualität, self.anpassungmaßnahmeUndFlankenlinienkorrektur)
+        _print("f_ma =", self.f_ma)
+
         self.K_Hbeta = tuple(_K_Hbeta(self.F_t, self.K_A, self.K_V[idx], self.v, self.geometrie.d, self.geometrie.b, self.doppelschrägverzahnt, self.anpassungmaßnahmeUndFlankenlinienkorrektur,
-                                      self.werkstoff, self.s, self.verzahnungsqualität, self.f_ma[idx], self.kontakttragbild[idx], self.ritzelPosition, self.stützwirkung, self.l, self.d_sh[idx],
+                                      self.werkstoff, self.s, self.f_ma, self.kontakttragbild[idx], self.ritzelPosition, self.stützwirkung, self.l, self.d_sh[idx],
                                       self.d_sh[Ritzel], _print)
                              if K_Hbeta is None else K_Hbeta for idx, K_Hbeta in zip(_indices, self.K_Hbeta))
         _print("K_Hβ =", self.K_Hbeta)
