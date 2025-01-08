@@ -1257,8 +1257,8 @@ class Calculator:
         assert self._check_safety(self.S_Hdyn[Ritzel], S_Hdynmin, "S_Hdyn1", "dynamische Grübchensicherheit des Ritzels", _print) or not _assert
         assert self._check_safety(self.S_Hstat[Rad], S_Hstatmin, "S_Hstat2", "statische Grübchensicherheit des Rades", _print) or not _assert
         assert self._check_safety(self.S_Hdyn[Rad], S_Hdynmin, "S_Hdyn2", "dynamische Grübchensicherheit des Rades", _print) or not _assert
-        _print()
-        
+
+
         # Zahnfußtragfähigkeit
 
         self.z_n = tuple(z_n(self.geometrie.z[idx], self.geometrie.beta, self.geometrie.beta_b) for idx in _indices)
