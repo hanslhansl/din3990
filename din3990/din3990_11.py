@@ -1339,7 +1339,6 @@ class Calculator:
         assert self._check_safety(self.S_Fdyn[Ritzel], S_Fdynmin, "S_Fdyn1", "dynamische Zahnbruchsicherheit des Ritzels", _print) or not _assert
         assert self._check_safety(self.S_Fstat[Rad], S_Fstatmin, "S_Fstat2", "statische Zahnbruchsicherheit des Rads", _print) or not _assert
         assert self._check_safety(self.S_Fdyn[Rad], S_Fdynmin, "S_Fdyn2", "dynamische Zahnbruchsicherheit des Rads", _print) or not _assert
-        _print()
 
         return
 
