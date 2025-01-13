@@ -1,5 +1,5 @@
 from din3990 import *
-from din3962 import din3962_2
+import din3962
 import diniso21771
 
 
@@ -17,11 +17,11 @@ geometrie = diniso21771.GearGeometry(m_n = 4,
                     beta = 0,
                     k = 0,
                     b_d_1_verhältnis = 0.64)
-
+print()
 
 getriebe = din3990_11.Calculator(geometrie = geometrie, P = 55,
             n_1 = 980,
-            verzahnungsqualität = (din3962_2.GearToothQuality.DIN6, din3962_2.GearToothQuality.DIN7),
+            verzahnungsqualität = (din3962.GearToothQuality.DIN6, din3962.GearToothQuality.DIN7),
             werkstoff = (werkstoff, werkstoff),
             K_A = 1.75,
             K_S = 2.5,
@@ -35,7 +35,7 @@ getriebe = din3990_11.Calculator(geometrie = geometrie, P = 55,
             S_Hstatmin=S_Hstatmin, S_Hdynmin=S_Hdyn_interval, S_Fstatmin=S_Fstatmin, S_Fdynmin=S_Fdyn_interval,
 
             _assert = False)
-
+print()
 
 assert geometrie.b / geometrie.m_n <= 30 # Konstruktionsvorgaben Tabelle 4
 assert getriebe.R_z100 < 4 # Konstruktionsvorgaben Seite 7

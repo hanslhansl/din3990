@@ -3,8 +3,8 @@ from typing import Optional
 from enum import Enum, IntEnum, auto
 import math as m
 
-from din3962 import din3962_2
-from diniso1328 import diniso1328_1
+import din3962
+import diniso1328
 import diniso21771
 
 from . import din3990_5
@@ -89,23 +89,23 @@ def T(P : float, n : float):
     """Glg 3.02"""
     return 30000 * P / n / m.pi
 
-def K_1(q : din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, geradverzahnt : bool):
+def K_1(q : din3962.GearToothQuality | diniso1328.FlankToleranceClass, geradverzahnt : bool):
     """Tabelle 3.1"""
     if geradverzahnt:
         match q:
-            case din3962_2.GearToothQuality.DIN6:
+            case din3962.GearToothQuality.DIN6:
                 return 9.6
-            case din3962_2.GearToothQuality.DIN7:
+            case din3962.GearToothQuality.DIN7:
                 return 15.3
-            case din3962_2.GearToothQuality.DIN8:
+            case din3962.GearToothQuality.DIN8:
                 return 24.5
-            case din3962_2.GearToothQuality.DIN9:
+            case din3962.GearToothQuality.DIN9:
                 return 34.5
-            case din3962_2.GearToothQuality.DIN10:
+            case din3962.GearToothQuality.DIN10:
                 return 53.6
-            case din3962_2.GearToothQuality.DIN11:
+            case din3962.GearToothQuality.DIN11:
                 return 76.6
-            case din3962_2.GearToothQuality.DIN12:
+            case din3962.GearToothQuality.DIN12:
                 return 122.5
             case diniso1328_1.FlankToleranceClass.ISO5:
                 return 7.5
@@ -123,19 +123,19 @@ def K_1(q : din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, gerad
                 return 102.6
     else:
         match q:
-            case din3962_2.GearToothQuality.DIN6:
+            case din3962.GearToothQuality.DIN6:
                 return 8.5
-            case din3962_2.GearToothQuality.DIN7:
+            case din3962.GearToothQuality.DIN7:
                 return 13.6
-            case din3962_2.GearToothQuality.DIN8:
+            case din3962.GearToothQuality.DIN8:
                 return 21.8
-            case din3962_2.GearToothQuality.DIN9:
+            case din3962.GearToothQuality.DIN9:
                 return 30.7
-            case din3962_2.GearToothQuality.DIN10:
+            case din3962.GearToothQuality.DIN10:
                 return 47.7
-            case din3962_2.GearToothQuality.DIN11:
+            case din3962.GearToothQuality.DIN11:
                 return 68.2
-            case din3962_2.GearToothQuality.DIN12:
+            case din3962.GearToothQuality.DIN12:
                 return 109.1
             case diniso1328_1.FlankToleranceClass.ISO5:
                 return 6.7
@@ -158,7 +158,7 @@ def K_2(geradverzahnt : bool):
         return 0.0193
     return 0.0087
 def K_V(z_1 : int, v : float, u : float, F_t : float, K_A : float, b : float, epsilon_beta : float, geradverzahnt : bool,
-        verzahnungsqualität : din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, _print):
+        verzahnungsqualität : din3962.GearToothQuality | diniso1328.FlankToleranceClass, _print):
     """Abschnitt 3.3"""
     # Glg 3.04
     temp1 = z_1 * v / 100 * m.sqrt(u**2 / (1 + u**2))
@@ -185,12 +185,12 @@ def K_V(z_1 : int, v : float, u : float, F_t : float, K_A : float, b : float, ep
         K_Vbeta = _K_V(False)
         return interpolate(K_Valpha, K_Vbeta, epsilon_beta)
 
-def f_Hbeta(d : float, b : float, verzahnungsqualität : din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass):
-    if isinstance(verzahnungsqualität, din3962_2.GearToothQuality):
-        return din3962_2.Deviations(verzahnungsqualität, b)[1]
+def f_Hbeta(d : float, b : float, verzahnungsqualität : din3962.GearToothQuality | diniso1328.FlankToleranceClass):
+    if isinstance(verzahnungsqualität, din3962.GearToothQuality):
+        return din3962.Deviations(verzahnungsqualität, b)[1]
     else:
-        return diniso1328_1.f_Hbeta(d, b, verzahnungsqualität)
-def f_ma(d : tuple[float, float], b : float, verzahnungsqualität : tuple[din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass],
+        return diniso1328.f_Hbeta(d, b, verzahnungsqualität)
+def f_ma(d : tuple[float, float], b : float, verzahnungsqualität : tuple[din3962.GearToothQuality | diniso1328.FlankToleranceClass, din3962.GearToothQuality | diniso1328.FlankToleranceClass],
          anpassungsmaßnahmeUndFlankenlinienkorrektur : AnpassungsmaßnahmeUndFlankenlinienkorrektur):
     """Abschnitt 3.4.2.4"""
     _f_Hbeta = max(f_Hbeta(d[idx], b, verzahnungsqualität[idx]) for idx in _indices)
@@ -362,16 +362,16 @@ def K_Fbeta(F_t : float, K_A : float, K_Hbeta : float, b : float, h : float):
     return m.pow(K_Hbeta, (1 / (1 + h_b + h_b**2)))
 
 def K_H_Falpha(K_A : float, F_t : float, b : float, beta_b : float, epsilon_alpha : float, geradverzahnt : bool, werkstoff : din3990_5.Werkstoff,
-               verzahnungsqualität : tuple[din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass],
+               verzahnungsqualität : tuple[din3962.GearToothQuality | diniso1328.FlankToleranceClass, din3962.GearToothQuality | diniso1328.FlankToleranceClass],
                Z_epsilon : float, Y_epsilon : float):
     """
     K_Hα und K_Fα
     Tabelle 3.3
     """
-    qualität = max(q if isinstance(q, din3962_2.GearToothQuality) else din3962_2.GearToothQuality(q + 1) for q in verzahnungsqualität)
+    qualität = max(q if isinstance(q, din3962.GearToothQuality) else din3962.GearToothQuality(q + 1) for q in verzahnungsqualität)
     linienbelastung = F_t / b * K_A
     linienbelastung_größer = linienbelastung > 100
-    und_gröber = qualität >= din3962_2.GearToothQuality.DIN6
+    und_gröber = qualität >= din3962.GearToothQuality.DIN6
 
     if werkstoff.art in (din3990_5.Werkstoff.Art.Einsatzstahl,
                          din3990_5.Werkstoff.Art.InduktionsgehärteterStahl, din3990_5.Werkstoff.Art.FlammgehärteterStahl,
@@ -381,13 +381,13 @@ def K_H_Falpha(K_A : float, F_t : float, b : float, beta_b : float, epsilon_alph
         if geradverzahnt:
             if linienbelastung_größer:
                 match qualität:
-                    case (din3962_2.GearToothQuality.DIN6 | din3962_2.GearToothQuality.DIN7):
+                    case (din3962.GearToothQuality.DIN6 | din3962.GearToothQuality.DIN7):
                         return 1., 1.
-                    case din3962_2.GearToothQuality.DIN8:
+                    case din3962.GearToothQuality.DIN8:
                         return 1.1, 1.1
-                    case din3962_2.GearToothQuality.DIN9:
+                    case din3962.GearToothQuality.DIN9:
                         return 1.2, 1.2
-                    case din3962_2.GearToothQuality.DIN10 | din3962_2.GearToothQuality.DIN11 | din3962_2.GearToothQuality.DIN12:
+                    case din3962.GearToothQuality.DIN10 | din3962.GearToothQuality.DIN11 | din3962.GearToothQuality.DIN12:
                         K_H = 1 / Z_epsilon**2
                         K_F = 1 / Y_epsilon**2
                         assert K_H >= 1.2
@@ -403,15 +403,15 @@ def K_H_Falpha(K_A : float, F_t : float, b : float, beta_b : float, epsilon_alph
         else:
             if linienbelastung_größer:
                 match qualität:
-                    case din3962_2.GearToothQuality.DIN6:
+                    case din3962.GearToothQuality.DIN6:
                         return 1., 1.
-                    case din3962_2.GearToothQuality.DIN7:
+                    case din3962.GearToothQuality.DIN7:
                         return 1.1, 1.1
-                    case din3962_2.GearToothQuality.DIN8:
+                    case din3962.GearToothQuality.DIN8:
                         return 1.2, 1.2
-                    case din3962_2.GearToothQuality.DIN9:
+                    case din3962.GearToothQuality.DIN9:
                         return 1.4, 1.4
-                    case din3962_2.GearToothQuality.DIN10 | din3962_2.GearToothQuality.DIN11 | din3962_2.GearToothQuality.DIN12:
+                    case din3962.GearToothQuality.DIN10 | din3962.GearToothQuality.DIN11 | din3962.GearToothQuality.DIN12:
                         K = epsilon_alpha / m.cos(m.radians(beta_b))**2
                         assert K >= 1.4
                         return K, K
@@ -424,13 +424,13 @@ def K_H_Falpha(K_A : float, F_t : float, b : float, beta_b : float, epsilon_alph
         if geradverzahnt:
             if linienbelastung_größer:
                 match qualität:
-                    case din3962_2.GearToothQuality.DIN6 | din3962_2.GearToothQuality.DIN7 | din3962_2.GearToothQuality.DIN8:
+                    case din3962.GearToothQuality.DIN6 | din3962.GearToothQuality.DIN7 | din3962.GearToothQuality.DIN8:
                         return 1., 1.
-                    case din3962_2.GearToothQuality.DIN9:
+                    case din3962.GearToothQuality.DIN9:
                         return 1.1, 1.1
-                    case din3962_2.GearToothQuality.DIN10:
+                    case din3962.GearToothQuality.DIN10:
                         return 1.2, 1.2
-                    case din3962_2.GearToothQuality.DIN11 | din3962_2.GearToothQuality.DIN12:
+                    case din3962.GearToothQuality.DIN11 | din3962.GearToothQuality.DIN12:
                         K_H = 1 / Z_epsilon**2
                         K_F = 1 / Y_epsilon**2
                         assert K_H >= 1.2
@@ -446,15 +446,15 @@ def K_H_Falpha(K_A : float, F_t : float, b : float, beta_b : float, epsilon_alph
         else:
             if linienbelastung_größer:
                 match qualität:
-                    case din3962_2.GearToothQuality.DIN6 | din3962_2.GearToothQuality.DIN7:
+                    case din3962.GearToothQuality.DIN6 | din3962.GearToothQuality.DIN7:
                         return 1., 1.
-                    case din3962_2.GearToothQuality.DIN8:
+                    case din3962.GearToothQuality.DIN8:
                         return 1.1, 1.1
-                    case din3962_2.GearToothQuality.DIN9:
+                    case din3962.GearToothQuality.DIN9:
                         return 1.2, 1.2
-                    case din3962_2.GearToothQuality.DIN10:
+                    case din3962.GearToothQuality.DIN10:
                         return 1.4, 1.4
-                    case din3962_2.GearToothQuality.DIN11 | din3962_2.GearToothQuality.DIN12:
+                    case din3962.GearToothQuality.DIN11 | din3962.GearToothQuality.DIN12:
                         K = epsilon_alpha / m.cos(m.radians(beta_b))**2
                         assert K >= 1.4
                         return K, K
@@ -1012,6 +1012,7 @@ _f_ma = f_ma
 _K_Hbeta = K_Hbeta
 _K_Fbeta = K_Fbeta
 _Z_LVRdyn = Z_LVRdyn
+
 class Calculator:
 
     @staticmethod
@@ -1037,7 +1038,7 @@ class Calculator:
                 geometrie : diniso21771.GearGeometry,
                 P : float,
                 n_1 : float,
-                verzahnungsqualität : tuple[din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass, din3962_2.GearToothQuality | diniso1328_1.FlankToleranceClass],
+                verzahnungsqualität : tuple[din3962.GearToothQuality | diniso1328.FlankToleranceClass, din3962.GearToothQuality | diniso1328.FlankToleranceClass],
                 werkstoff : tuple[din3990_5.Werkstoff, din3990_5.Werkstoff],
                 K_A : float,
                 K_S : float,
@@ -1111,9 +1112,7 @@ class Calculator:
 
         assert not innenverzahnt, "Innenverzahnte Getriebe sind nicht implementiert"
 
-        _print("Parameter")
         [_print(key, "=", value) for key, value in locals().items() if key not in ("self", "_print")]
-        _print()
 
         self.geometrie = geometrie
         self.P = P
@@ -1152,7 +1151,6 @@ class Calculator:
         assert self.geometrie.beta <= 30, "β darf nicht größer als 30° sein (siehe Abschnitt 1.3d)"
         assert not (self.doppelschrägverzahnt and geradverzahnt), "Ein doppelschrägverzahntes Getriebe kann nicht geradverzahnt sein"
 
-        _print("DIN 3990-11")
         _print("n =", self.n)
 
         self.v = v(self.n[Ritzel], self.geometrie.d[Ritzel])
