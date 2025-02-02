@@ -85,6 +85,14 @@ def v(n : float, d : float):
 def F_t(P : float, n : float, d : float):
     """Glg 3.01"""
     return 60000000 * P / n / m.pi / d
+def F_ta(F_t : float, beta : float):
+    return F_t / m.cos(m.radians(beta))
+def F_z(F_t : float, alpha_n : float, beta : float):
+    return F_t / m.cos(m.radians(beta)) / m.cos(m.radians(alpha_n))
+def F_a(F_t : float, beta : float):
+    return F_t * m.tan(m.radians(beta))
+def F_n(F_t : float, alpha_n : float, beta : float):
+    return F_t * m.tan(m.radians(alpha_n)) / m.cos(m.radians(beta))
 def T(P : float, n : float):
     """Glg 3.02"""
     return 30000 * P / n / m.pi
@@ -1159,6 +1167,18 @@ class Calculator:
         self.F_t = F_t(self.P, self.n[Ritzel], self.geometrie.d[Ritzel])
         _print("F_t =", self.F_t)
   
+        self.F_ta = F_ta(self.F_t, self.geometrie.beta)
+        _print("F_ta =", self.F_ta)
+
+        self.F_z = F_z(self.F_t, self.geometrie.alpha_n, self.geometrie.beta)
+        _print("F_z =", self.F_z)
+
+        self.F_a = F_a(self.F_t, self.geometrie.beta)
+        _print("F_a =", self.F_a)
+
+        self.F_n = F_n(self.F_t, self.geometrie.alpha_n, self.geometrie.beta)
+        _print("F_n =", self.F_n)
+
         self.T = tuple(T(self.P, self.n[idx]) for idx in _indices)
         _print("T =", self.T)
 
