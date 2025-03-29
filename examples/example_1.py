@@ -1,4 +1,4 @@
-from din3990 import *
+import din3990
 import din3962
 import diniso21771
 
@@ -8,18 +8,18 @@ S_Hdyn_interval = (1.2, 1.5)
 S_Fstatmin = 3.5
 S_Fdyn_interval = (1.5, 2)
 
-werkstoff = din3990_5.Werkstoff(din3990_5.Werkstoff.Art.Einsatzstahl, 1500, 860, 220)
+werkstoff = din3990.din3990_5.Werkstoff(din3990.din3990_5.Werkstoff.Art.Einsatzstahl, 1500, 860, 220)
 
 geometrie = diniso21771.GearGeometry(m_n = 4,
                     z = (19, 104),
                     x = (0.5, 0.15),
-                    bezugsprofil = (din3990_11.Normalprofil1, din3990_11.Normalprofil1),
+                    bezugsprofil = (din3990.din3990_11.Normalprofil1, din3990.din3990_11.Normalprofil1),
                     beta = 0,
                     k = 0,
                     b_d_1_verhältnis = 0.64)
 print()
 
-getriebe = din3990_11.Calculator(geometrie = geometrie, P = 55,
+getriebe = din3990.din3990_11.Calculator(geometrie = geometrie, P = 55,
             n_1 = 980,
             verzahnungsqualität = (din3962.GearToothQuality.DIN6, din3962.GearToothQuality.DIN7),
             werkstoff = (werkstoff, werkstoff),
@@ -27,10 +27,10 @@ getriebe = din3990_11.Calculator(geometrie = geometrie, P = 55,
             K_S = 2.5,
             R_z = (5, 5),
 
-            anpassungsmaßnahmeUndFlankenlinienkorrektur = din3990_11.AnpassungsmaßnahmeUndFlankenlinienkorrektur.ohne,
+            anpassungsmaßnahmeUndFlankenlinienkorrektur = din3990.din3990_11.AnpassungsmaßnahmeUndFlankenlinienkorrektur.ohne,
             f_ma = 0,  # Annahme, siehe Fußnote 5
             s = 0,
-            fertigungsverfahren = (din3990_11.Fertigungsverfahren.geläpptGeschliffenGeschabt, din3990_11.Fertigungsverfahren.geläpptGeschliffenGeschabt),
+            fertigungsverfahren = (din3990.din3990_11.Fertigungsverfahren.geläpptGeschliffenGeschabt, din3990.din3990_11.Fertigungsverfahren.geläpptGeschliffenGeschabt),
 
             S_Hstatmin=S_Hstatmin, S_Hdynmin=S_Hdyn_interval, S_Fstatmin=S_Fstatmin, S_Fdynmin=S_Fdyn_interval,
 
